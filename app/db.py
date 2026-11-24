@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MIGRATIONS = {"incident": ROOT / "migrations" / "incident", "security": ROOT / "migrations" / "security"}
 # checkpoint_migrations는 버전 기록이라 비우지 않는다
 INCIDENT_TABLES = ("llm_calls", "actions", "documents", "incidents", "checkpoints", "checkpoint_blobs", "checkpoint_writes")
-SECURITY_TABLES = ("security_reports", "security_findings", "security_runs")
+SECURITY_TABLES = ("security_reports", "security_scan_objects", "security_findings", "security_runs")
 
 
 def sqlalchemy_url(url: str) -> str:

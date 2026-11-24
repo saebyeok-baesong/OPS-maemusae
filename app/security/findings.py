@@ -41,7 +41,7 @@ class Finding:
 
 
 class SecurityReportIn(BaseModel):
-    """CI나 kube-bench Job이 보내는 본문. report는 도구의 JSON 출력 그대로."""
+    """kube-bench Job이 api로 보내는 본문. S3 수집도 같은 모양으로 감싸 파서에 넘긴다. report는 도구의 JSON 출력 그대로."""
 
     target: str
     run_url: str | None = None

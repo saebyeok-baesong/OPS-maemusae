@@ -1,8 +1,9 @@
-# 이미지 하나, 진입점 셋:
-#   api        uvicorn app.main:app --host 0.0.0.0 --port 8000   (기본)
-#   worker     python -m app.worker
-#   approvals  python -m app.approvals
-#   migrate    python -m app.db       (배포 전 Job 또는 init container)
+# 이미지 하나(ECR 저장소 ops), 진입점 여럿:
+#   api          uvicorn app.main:app --host 0.0.0.0 --port 8000   (기본)
+#   worker       python -m app.worker
+#   approvals    python -m app.approvals
+#   migrate      python -m app.db                 (배포 전 Job 또는 init container)
+#   ingest-s3    python -m app.security.ingest_s3 (CronJob. CI 보안 스캔 결과를 S3에서 가져온다)
 FROM python:3.12-slim
 
 WORKDIR /srv
