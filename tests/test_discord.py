@@ -103,7 +103,7 @@ def test_click_by_infra_merges_removes_the_button_and_replies_on_the_card(contai
 def test_click_by_someone_else_is_answered_privately(container, github):
     with_proposal(container, github)
     status, private = handle_click(container, "inc1", "U-DEV", ["R-FULLSTACK"], "C-INC", "m1")
-    assert status == "not_allowed" and "인프라팀" in private
+    assert status == "not_allowed" and "승인 역할" in private
     assert container.discord.posts == [] and container.discord.edits == []
 
 

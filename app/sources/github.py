@@ -46,10 +46,19 @@ class PullRequest:
     head_sha: str
     state: str          # open | closed
     merged: bool
+    base_ref: str
+
+
+@dataclass(frozen=True)
+class PullFile:
+    filename: str
+    status: str         # added | modified | removed | renamed ...
+    patch: str | None   # GitHub가 큰 diff는 비워 보낸다
 
 
 def _pr(body: dict) -> PullRequest:
-    return PullRequest(body["number"], body["html_url"], body["head"]["sha"], body["state"], bool(body.get("merged")))
+    return PullRequest(body["number"], body["html_url"], body["head"]["sha"], body["state"], bool(body.get("merged")),
+                       body["base"]["ref"])
 
 
 class InfraRepo:
@@ -112,6 +121,11 @@ class InfraRepo:
 
     def pull(self, number: int) -> PullRequest:
         return _pr(self._call("GET", f"/pulls/{number}").raise_for_status().json())
+
+    def pull_files(self, number: int) -> list[PullFile]:
+        resp = self._call("GET", f"/pulls/{number}/files", params={"per_page": 100})
+        resp.raise_for_status()
+        return [PullFile(f["filename"], f["status"], f.get("patch")) for f in resp.json()]
 
     def merge(self, number: int, head_sha: str, title: str) -> tuple[bool, str]:
         """head_sha가 다르면 GitHub가 거절한다. 제안 뒤 누가 PR에 커밋을 더했으면 merge하지 않는다."""

@@ -1,14 +1,15 @@
 """환경변수 설정. 로컬은 .env, 클러스터는 Secret과 ConfigMap으로 넣는다."""
 from functools import lru_cache
+from typing import Annotated
 
-from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    # 접수. 토큰을 둘로 나눈 이유: CI(GitHub Secrets)에 있는 보안 보고 토큰이 새도 장애를 위조할 수 없게 한다
+    # 접수. 토큰을 둘로 나눈 이유: kube-bench Job에 있는 보안 보고 토큰이 새도 장애를 위조할 수 없게 한다
     alertmanager_token: str = "change-me"
     security_report_token: str = "change-me-too"
     dedupe_ttl_sec: int = 600
@@ -52,8 +53,8 @@ class Settings(BaseSettings):
     discord_bot_token: str = ""
     discord_incident_channel_id: str = ""
     discord_security_channel_id: str = ""
-    # 승인할 수 있는 Discord 역할 ID(인프라팀). 비우면 아무도 승인하지 못한다
-    discord_approver_role_ids: list[str] = []
+    # 승인할 수 있는 Discord 역할 ID. 쉼표로 나눈다. 이 중 하나라도 가진 사람이 승인한다. 비우면 아무도 승인하지 못한다
+    discord_approver_role_ids: Annotated[list[str], NoDecode] = []
 
     # 롤백(INFRA 레포 PR)
     github_app_id: str = ""
@@ -68,6 +69,13 @@ class Settings(BaseSettings):
 
     # 보안 일일 보고(한국 시각)
     security_report_hour_kst: int = 9
+    # GitHub Actions 스캔 결과가 올라오는 S3 버킷(maemusae-security-scans-<account_id>). 비우면 수집 Job이 돌지 않는다
+    security_scan_bucket: str = ""
+
+    @field_validator("discord_approver_role_ids", mode="before")
+    @classmethod
+    def _comma_separated(cls, v):
+        return [r.strip() for r in v.split(",") if r.strip()] if isinstance(v, str) else v
 
 
 @lru_cache

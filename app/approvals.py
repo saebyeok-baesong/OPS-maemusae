@@ -11,14 +11,15 @@ from app.rollback import Status, approve, short
 
 log = logging.getLogger("approvals")
 
-# 누른 사람에게만 보이는 답. 조치가 실행된 경우(MERGED, FAILED, STALE)는 카드에 모두가 보는 답을 단다
+# 누른 사람에게만 보이는 답. 조치가 실행된 경우(MERGED, FAILED, STALE, REJECTED)는 카드에 모두가 보는 답을 단다
 PRIVATE_REPLIES = {
-    Status.NOT_ALLOWED: "승인 권한이 없습니다. 인프라팀 역할이 필요합니다.",
+    Status.NOT_ALLOWED: "승인 권한이 없습니다. 승인 역할이 필요합니다.",
     Status.UNKNOWN: "장애 기록을 찾지 못했습니다.",
     Status.NO_PROPOSAL: "이 장애에는 실행할 수 있는 조치가 없습니다.",
     Status.ALREADY: "이미 승인되어 실행했거나 실행 중인 조치입니다.",
 }
-PUBLIC_TITLE = {Status.MERGED: "✅ 롤백 PR merge", Status.FAILED: "❌ 롤백 실패", Status.STALE: "⏸️ 롤백 보류"}
+PUBLIC_TITLE = {Status.MERGED: "✅ 롤백 PR merge", Status.FAILED: "❌ 롤백 실패", Status.STALE: "⏸️ 롤백 보류",
+                Status.REJECTED: "🚫 롤백 거부"}
 
 
 def handle_click(c: Container, incident_id: str, user_id: str, roles: list[str], channel_id: str, message_id: str) -> tuple[Status, str]:

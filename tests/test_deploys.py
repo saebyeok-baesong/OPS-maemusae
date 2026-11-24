@@ -30,6 +30,17 @@ def test_set_image_changes_one_line_and_keeps_comments():
         set_image(text, "api", "api:latest")
 
 
+def test_blank_lines_between_apps_survive_a_rewrite():
+    text = ("# 앱 이름: 저장소@sha256:digest\n"
+            f"web: {image('web', '1')}\n\n"
+            f"# api는 FastAPI\napi: {image('api', '2')}\n\n"
+            f"ops: {image('ops', '3')}\n")
+    assert parse_images(text) == {"web": image("web", "1"), "api": image("api", "2"), "ops": image("ops", "3")}
+    out = set_image(text, "api", image("api", "1"))
+    assert out == text.replace(image("api", "2"), image("api", "1"))
+    assert out.splitlines()[2] == "" and out.splitlines()[5] == ""
+
+
 def test_deploy_is_the_newest_commit_that_changed_the_app():
     history = [rev(3, web="w2", api="a2"), rev(2, web="w1", api="a2"), rev(1, web="w1", api="a1")]
     api = deploy_from_history("api", history)

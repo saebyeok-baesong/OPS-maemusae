@@ -113,3 +113,70 @@ def test_incident_without_proposal(container):
     container.store.create("inc2", "fp", incident())
     assert approve(container.store, container.infra, "inc2", "U", [INFRA_ROLE], [INFRA_ROLE]).status == Status.NO_PROPOSAL
     assert approve(container.store, container.infra, "nope", "U", [INFRA_ROLE], [INFRA_ROLE]).status == Status.UNKNOWN
+
+
+def test_any_of_the_configured_team_roles_can_approve(monkeypatch):
+    from app.config import Settings
+
+    monkeypatch.setenv("DISCORD_APPROVER_ROLE_IDS", "R-FULLSTACK, R-INFRA,R-SECURITY")
+    roles = Settings(_env_file=None).discord_approver_role_ids
+    assert roles == ["R-FULLSTACK", "R-INFRA", "R-SECURITY"]
+    monkeypatch.setenv("DISCORD_APPROVER_ROLE_IDS", "")
+    assert Settings(_env_file=None).discord_approver_role_ids == []
+
+
+@pytest.mark.parametrize("member_roles", [["R-FULLSTACK"], ["R-OTHER", "R-SECURITY"]])
+def test_member_with_any_approver_role_merges(container, github, member_roles):
+    with_proposal(container, github)
+    result = approve(container.store, container.infra, "inc1", "U", member_roles, ["R-FULLSTACK", "R-INFRA", "R-SECURITY"])
+    assert result.status == Status.MERGED
+
+
+def leftover_branch(github, text: str) -> None:
+    """이전 시도가 남긴 롤백 브랜치. open_pr은 이 브랜치를 그대로 PR로 연다."""
+    github.branches["ops/rollback-inc1-api"] = [github.branches["main"][0]]
+    github.commit("ops/rollback-inc1-api", text, "rollback", datetime.now(timezone.utc))
+
+
+def test_pr_touching_another_file_is_not_merged(container, github):
+    with_proposal(container, github)
+    github.extra_files["ops/rollback-inc1-api"] = [("gitops/security/networkpolicy.yaml", "modified")]
+    result = approve(container.store, container.infra, "inc1", "U-ALICE", [INFRA_ROLE], [INFRA_ROLE])
+    assert result.status == Status.REJECTED and "gitops/security/networkpolicy.yaml" in result.detail
+    assert parse_images(github.main_images_text())["api"] == image("api", "a2")
+    assert not [p for _, p in github.calls if p.endswith("/merge")]
+    assert container.store.actions("inc1")[0]["status"] == "rejected"
+
+
+def test_pr_changing_two_lines_is_not_merged(container, github):
+    from tests.fakes import images_yaml
+
+    leftover_branch(github, images_yaml(web=image("web", "evil"), api=image("api", "a1")))
+    with_proposal(container, github)
+    result = approve(container.store, container.infra, "inc1", "U-ALICE", [INFRA_ROLE], [INFRA_ROLE])
+    assert result.status == Status.REJECTED and "한 줄이 아니다" in result.detail
+    assert parse_images(github.main_images_text())["web"] == image("web", "w1")
+
+
+def test_diff_must_be_exactly_the_planned_line():
+    from app.sources.github import PullFile
+
+    def patch(old: str, new: str) -> list[PullFile]:
+        return [PullFile("gitops/apps/images.yaml", "modified", f"@@ -3,3 +3,3 @@\n \n-{old}\n+{new}\n ")]
+
+    planned = patch(f"api: {PLAN.from_image}", f"api: {PLAN.to_image}")
+    assert rollback.diff_problem(PLAN, "main", planned, "main", "gitops/apps/images.yaml") is None
+    other_image = patch(f"api: {PLAN.from_image}", f"api: {image('api', 'other')}")
+    assert "api" in rollback.diff_problem(PLAN, "main", other_image, "main", "gitops/apps/images.yaml")
+    other_app = patch(f"web: {image('web', 'w1')}", f"web: {image('web', 'w0')}")
+    assert rollback.diff_problem(PLAN, "main", other_app, "main", "gitops/apps/images.yaml")
+    renamed = [PullFile("gitops/apps/images.yaml", "renamed", planned[0].patch)]
+    assert rollback.diff_problem(PLAN, "main", renamed, "main", "gitops/apps/images.yaml")
+
+
+def test_pr_not_targeting_main_is_not_merged(container, github):
+    with_proposal(container, github)
+    github.pulls[0]["base"] = "release"
+    github.branches["release"] = list(github.branches["main"])
+    result = approve(container.store, container.infra, "inc1", "U-ALICE", [INFRA_ROLE], [INFRA_ROLE])
+    assert result.status == Status.REJECTED and "release" in result.detail

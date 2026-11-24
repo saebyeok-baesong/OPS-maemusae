@@ -1,5 +1,6 @@
 """경계 밖 시스템(GitHub, Discord, Loki, Kubernetes)의 가짜. HTTP 경계에서 바꿔 끼워 실제 클라이언트 코드를 그대로 지나가게 한다."""
 import base64
+import difflib
 import hashlib
 import json
 from dataclasses import dataclass, field
@@ -24,9 +25,10 @@ def image(app: str, tag: str) -> str:
 
 
 def images_yaml(**apps: str) -> str:
+    """SPEC 계약대로 앱 줄 사이에 빈 줄을 둔다."""
     lines = ["# 앱 이름: 이미지@digest. 앱 레포 CI가 PR로 자기 줄을 고친다"]
     lines += [f"{app}: {img}" for app, img in apps.items()]
-    return "\n".join(lines) + "\n"
+    return "\n\n".join(lines) + "\n"
 
 
 @dataclass
@@ -45,6 +47,8 @@ class FakeGitHub:
     pulls: list[dict] = field(default_factory=list)
     calls: list[tuple[str, str]] = field(default_factory=list)
     tokens_issued: int = 0
+    # 브랜치에 images.yaml 말고 더 바뀐 파일(이름, 상태). 테스트가 섞인 PR을 만들 때 쓴다
+    extra_files: dict[str, list[tuple[str, str]]] = field(default_factory=dict)
 
     def commit(self, branch: str, text: str, message: str, date: datetime) -> Commit:
         c = Commit(hashlib.sha1(f"{branch}{text}{message}{date}".encode()).hexdigest(), date, message, text)
@@ -99,6 +103,9 @@ class FakeGitHub:
             self.pulls.append({"number": len(self.pulls) + 1, "head": body["head"], "base": body["base"], "title": body["title"],
                                "body": body["body"], "state": "open", "merged": False})
             return httpx.Response(201, json=self._pr_json(self.pulls[-1]))
+        if method == "GET" and path.startswith("/pulls/") and path.endswith("/files"):
+            pr = self.pulls[int(path.split("/")[2]) - 1]
+            return httpx.Response(200, json=self._files_json(pr["head"]))
         if path.startswith("/pulls/"):
             pr = self.pulls[int(path.split("/")[2]) - 1]
             if method == "GET":
@@ -112,7 +119,19 @@ class FakeGitHub:
 
     def _pr_json(self, pr: dict) -> dict:
         return {"number": pr["number"], "html_url": f"https://github.com/{OWNER}/{REPO}/pull/{pr['number']}",
-                "state": pr["state"], "merged": pr["merged"], "head": {"sha": self.branches[pr["head"]][0].sha}}
+                "state": pr["state"], "merged": pr["merged"], "head": {"sha": self.branches[pr["head"]][0].sha},
+                "base": {"ref": pr["base"]}}
+
+    def _files_json(self, branch: str) -> list[dict]:
+        """브랜치를 만든 커밋(목록의 맨 끝)과 지금 머리의 diff. GitHub처럼 ---, +++ 머리줄 없이 hunk만 준다."""
+        commits = self.branches[branch]
+        before, after = commits[-1].text, commits[0].text
+        out = []
+        if before != after:
+            patch = list(difflib.unified_diff(before.splitlines(), after.splitlines(), lineterm=""))[2:]
+            out.append({"filename": PATH, "status": "modified", "patch": "\n".join(patch)})
+        return out + [{"filename": name, "status": status, "patch": "@@ -0,0 +1 @@\n+x"}
+                      for name, status in self.extra_files.get(branch, [])]
 
     def main_images_text(self) -> str:
         return self.branches["main"][0].text

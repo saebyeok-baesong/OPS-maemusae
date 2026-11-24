@@ -1,5 +1,5 @@
 """알림 접수부터 Discord 카드까지. 워커를 직접 부른다."""
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -55,6 +55,19 @@ def test_crashloop_without_code_fix_uses_only_the_light_model_and_links_runbooks
     card = evidence.discord.posts[0][1]
     runbooks = next(f["value"] for f in card["embeds"][0]["fields"] if f["name"] == "런북")
     assert "knowledge/k8s/crashloop.md" in runbooks and "components" not in card
+
+
+def test_runbook_branch_also_gets_a_rollback_button_right_after_a_deploy(evidence, webhook, llm_calls, github):
+    crash_at = datetime.fromisoformat(webhook["alerts"][1]["startsAt"])
+    github.commit("main", fakes.images_yaml(web=fakes.image("web", "w2"), api=fakes.image("api", "a2")),
+                  "deploy(web): w2 (#8)", crash_at - timedelta(minutes=3))
+    [incident_id] = post(evidence, webhook, 1)["accepted"]
+    [final] = drain(evidence)
+
+    assert final["outcome"] == "runbook" and llm_calls == [("fake:light", "Classification")]
+    assert final["rollback_pr"].plan.app == "web"
+    card = evidence.discord.posts[0][1]
+    assert card["components"][0]["components"][0]["custom_id"] == f"rollback:{incident_id}"
 
 
 def test_same_error_again_hits_the_classification_cache(evidence, webhook, llm_calls):
