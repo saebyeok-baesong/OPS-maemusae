@@ -1,0 +1,61 @@
+# 테스트 → arm64 이미지 빌드 → (main 에서만) ECR ops 저장소에 push.
+# PR 에서는 push 하지 않는다. ECR push 역할은 main 만 믿는다 (INFRA 10-base ecr_push_ref)
+#
+# 준비 (저장소 Settings → Variables):
+#   AWS_ECR_PUSH_ROLE_ARN  INFRA 10-base output ecr_push_role_arns 의 OPS 역할 (maemusae-gha-ecr-ops-watch-nyang)
+# ponytail: digest 는 job summary 에만 남긴다. image-PR App 이 생기면 INFRA gitops/apps/images.yaml 의 ops 줄을 고치는 PR 을 연다
+name: image
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: image-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: python3 -m venv .venv && .venv/bin/pip install -q -r requirements-dev.txt
+      - run: .venv/bin/python -m pytest -q
+
+  image:
+    needs: test
+    runs-on: ubuntu-24.04-arm # EKS 노드가 Graviton(arm64)
+    permissions:
+      contents: read
+      id-token: write # ECR push 역할 OIDC
+    env:
+      PUSH: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - if: env.PUSH == 'true'
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_ECR_PUSH_ROLE_ARN }}
+          aws-region: ap-northeast-2
+      - if: env.PUSH == 'true'
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/arm64
+          push: ${{ env.PUSH == 'true' }}
+          # ECR 저장소가 IMMUTABLE 이라 같은 태그를 다시 못 올린다. 커밋 SHA 를 태그로 쓴다
+          tags: ${{ steps.ecr.outputs.registry || 'local' }}/ops:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - if: env.PUSH == 'true'
+        run: |
+          echo "### ops 이미지" >> "$GITHUB_STEP_SUMMARY"
+          echo "images.yaml 한 줄: \`ops: ${{ steps.ecr.outputs.registry }}/ops@${{ steps.build.outputs.digest }}\`" >> "$GITHUB_STEP_SUMMARY"
