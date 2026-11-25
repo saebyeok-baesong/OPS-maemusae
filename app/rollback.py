@@ -59,7 +59,7 @@ def pr_body(incident_id: str, inc: Incident, plan: RollbackPlan) -> str:
     return (f"장애 `{incident_id}` ({inc.alertname})가 배포 직후에 시작되어 직전 이미지로 되돌립니다.\n\n"
             f"- 앱: `{plan.app}`\n- 지금: `{plan.from_image}` (배포 {plan.deployed_at.isoformat()})\n"
             f"- 되돌릴 이미지: `{plan.to_image}`\n\n"
-            "Discord 장애 카드에서 승인 역할을 가진 사람이 승인하면 장애 대응 봇이 리뷰 없이 이 PR을 merge합니다. Discord 승인이 사람 리뷰입니다. 직접 merge하거나 닫아도 됩니다.")
+            "Discord 장애 알림에서 승인 역할을 가진 사람이 승인하면 장애 대응 봇이 리뷰 없이 이 PR을 merge합니다. Discord 승인이 사람 리뷰입니다. 직접 merge하거나 닫아도 됩니다.")
 
 
 def merge_title(plan: RollbackPlan, number: int) -> str:

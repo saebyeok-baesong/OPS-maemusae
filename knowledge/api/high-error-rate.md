@@ -18,4 +18,4 @@ api 접근 로그(`logger=app.access`)에서 `status >= 500` 비율이 5분 동�
 
 1. 같은 시간대 `{namespace="maemusae", container="api"} | json | status >= 500`을 경로별로 센다.
 2. RDS CloudWatch에서 `DatabaseConnections`, `CPUUtilization`을 본다.
-3. 배포 직후면 카드의 롤백 버튼으로 되돌린다.
+3. 배포 직후면 메시지의 롤백 버튼으로 되돌린다.

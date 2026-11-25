@@ -1,4 +1,4 @@
-"""Discord 메시지 본문을 만든다(순수 함수). 장애 하나에 카드 한 장, 보안 일일 보고 하나에 카드 한 장.
+"""Discord 메시지 본문을 만든다(순수 함수). 장애 하나에 메시지 하나, 보안 일일 보고 하나에 메시지 하나.
 
 Discord 한도: embed 제목 256, 설명 4096, 필드 값 1024, 필드 25개, embed 합계 6000자, 버튼 라벨 80, custom_id 100.
 """
@@ -8,7 +8,7 @@ from app.incident import Incident
 from app.rollback import RollbackPR, short
 
 TITLE_MAX, DESC_MAX, FIELD_MAX, LABEL_MAX = 256, 4096, 1024, 80
-# 카드는 한눈에 읽는 요약이다. 전문은 장애 조회 API의 report에 남는다
+# 메시지는 한눈에 읽는 요약이다. 전문은 장애 조회 API의 report에 남는다
 BODY_MAX = 400
 APPROVE_PREFIX = "rollback:"
 

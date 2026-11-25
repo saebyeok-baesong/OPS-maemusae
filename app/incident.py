@@ -43,7 +43,7 @@ class AnalyzeJob(BaseModel):
 
 
 class ResolvedJob(BaseModel):
-    """알림이 해소됐다. 카드에 해소 확인을 남긴다."""
+    """알림이 해소됐다. 메시지에 해소 확인을 남긴다."""
 
     kind: Literal["resolved"] = "resolved"
     incident_id: str

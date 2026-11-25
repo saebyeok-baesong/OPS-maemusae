@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     # 근거 수집. 비우면 그 근거 없이 접수한다
     loki_url: str = ""
 
-    # Discord. 카드 게시와 승인 버튼을 봇 하나가 맡는다
+    # Discord. 메시지 게시와 승인 버튼을 봇 하나가 맡는다
     discord_bot_token: str = ""
     discord_incident_channel_id: str = ""
     discord_security_channel_id: str = ""

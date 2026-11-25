@@ -75,7 +75,7 @@ OUTCOME_TITLE = {
 
 
 def render_report(state: dict) -> str:
-    """조회 API에 남기는 전문. Discord 카드는 이것의 요약이다."""
+    """조회 API에 남기는 전문. Discord 메시지는 이것의 요약이다."""
     inc = Incident.model_validate(state["incident"])
     cls = state.get("classification") or {}
     lines = [f"[{OUTCOME_TITLE.get(state['outcome'], state['outcome'])}] {inc.app}", f"> {inc.message.splitlines()[0][:200]}"]

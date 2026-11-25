@@ -47,7 +47,7 @@ GitHub Actions 러너는 클러스터 밖이라 ClusterIP인 api에 닿지 않�
 
 클러스터를 매일 내리면 Redis 데이터도 함께 사라집니다. 받아들인 결정이고, 뜻은 다음과 같습니다.
 
-- 코어 타임이 끝나면 큐가 비워집니다. 클러스터를 내릴 때 아직 분석하지 않은 장애는 다음 날로 넘어가지 않습니다. 그 장애는 incident DB에 `queued` 또는 `running`으로 남고 카드는 올라가지 않습니다. 다시 처리하려면 Alertmanager가 다시 보내야 합니다.
+- 코어 타임이 끝나면 큐가 비워집니다. 클러스터를 내릴 때 아직 분석하지 않은 장애는 다음 날로 넘어가지 않습니다. 그 장애는 incident DB에 `queued` 또는 `running`으로 남고 메시지는 올라가지 않습니다. 다시 처리하려면 Alertmanager가 다시 보내야 합니다.
 - 실패 메시지 보관 스트림(`incidents:dlq`)도 사라집니다. 실패 사유는 incident DB의 장애 상태(`failed`, `error`)에 남습니다.
 - 중복 제거 키(10분), LLM 응답 캐시, 임베딩 캐시, 검색 캐시가 비워집니다. 다음 날 첫 장애는 캐시 없이 돌아 LLM 비용이 조금 더 듭니다.
 - 장애 기록, 조치(롤백) 기록, LangGraph 체크포인트, 보안 결과는 RDS에 있어 남습니다.
@@ -86,7 +86,7 @@ Discord에서 사람이 승인했으면 merge 때 GitHub 리뷰를 다시 받지
 4. private key를 만들어 Secrets Manager `maemusae/ops`의 `GITHUB_APP_PRIVATE_KEY`로 넣습니다. `maemusae/` 경로 밖에는 두지 않고, 내려받은 `.pem` 파일은 넣은 뒤 지웁니다. 이 키를 담은 쿠버네티스 Secret은 approvals ServiceAccount만 읽게 합니다(지금 코드의 api, worker 사용은 PR 본문의 미결 질문).
 5. INFRA `main` ruleset의 우회 목록(bypass list)에 이 App 하나만 넣습니다. 우회는 `main` 브랜치에만 적용합니다. 다른 브랜치, 다른 레포, 다른 App이나 사람으로 우회 범위를 넓히려면 보안팀 리뷰를 받습니다.
 
-GitHub App 권한은 파일 단위로 좁힐 수 없습니다. Contents 쓰기가 있으면 INFRA의 어떤 파일이든 바꿀 수 있습니다. 그래서 OPS 코드가 merge 직전에 PR을 다시 확인하고, 아래 중 하나라도 어긋나면 merge하지 않고 장애 카드에 거부 사유를 답니다(`app/rollback.py`의 `diff_problem`).
+GitHub App 권한은 파일 단위로 좁힐 수 없습니다. Contents 쓰기가 있으면 INFRA의 어떤 파일이든 바꿀 수 있습니다. 그래서 OPS 코드가 merge 직전에 PR을 다시 확인하고, 아래 중 하나라도 어긋나면 merge하지 않고 장애 알림에 거부 사유를 답니다(`app/rollback.py`의 `diff_problem`).
 
 - PR의 base가 `main`이다.
 - 바뀐 파일이 `gitops/apps/images.yaml` 하나이고 상태가 modified다.

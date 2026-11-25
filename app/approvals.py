@@ -11,7 +11,7 @@ from app.rollback import Status, approve, short
 
 log = logging.getLogger("approvals")
 
-# 누른 사람에게만 보이는 답. 조치가 실행된 경우(MERGED, FAILED, STALE, REJECTED)는 카드에 모두가 보는 답을 단다
+# 누른 사람에게만 보이는 답. 조치가 실행된 경우(MERGED, FAILED, STALE, REJECTED)는 메시지에 모두가 보는 답을 단다
 PRIVATE_REPLIES = {
     Status.NOT_ALLOWED: "승인 권한이 없습니다. 승인 역할이 필요합니다.",
     Status.UNKNOWN: "장애 기록을 찾지 못했습니다.",
@@ -27,7 +27,7 @@ def handle_click(c: Container, incident_id: str, user_id: str, roles: list[str],
     result = approve(c.store, c.infra, incident_id, user_id, roles, c.settings.discord_approver_role_ids)
     if result.status in PRIVATE_REPLIES:
         return result.status, PRIVATE_REPLIES[result.status]
-    # 버튼을 지워 같은 카드에서 다시 누르지 않게 한다. 다시 눌러도 actions의 unique 제약이 막는다
+    # 버튼을 지워 같은 메시지에서 다시 누르지 않게 한다. 다시 눌러도 actions의 unique 제약이 막는다
     c.discord.edit(channel_id, message_id, {"components": []})
     p = result.pr.plan
     text = (f"{PUBLIC_TITLE[result.status]} · `{p.app}` `{short(p.from_image)}` -> `{short(p.to_image)}` "
@@ -58,7 +58,7 @@ def serve(c: Container) -> None:
             str(interaction.channel_id), str(interaction.message.id),
         )
         log.info("approval %s by %s: %s", custom_id, interaction.user.id, status)
-        await interaction.followup.send(private or "처리했습니다. 카드의 답을 확인하세요.", ephemeral=True)
+        await interaction.followup.send(private or "처리했습니다. 메시지의 답을 확인하세요.", ephemeral=True)
 
     client.run(c.settings.discord_bot_token, log_handler=None)
 

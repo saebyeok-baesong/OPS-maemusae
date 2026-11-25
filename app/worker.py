@@ -34,14 +34,14 @@ def run_graph(c: Container, job: AnalyzeJob) -> tuple[dict, list[str]]:
     if snapshot and snapshot.next:
         return c.graph.invoke(None, config), list(snapshot.next)
     if snapshot and snapshot.values.get("report"):
-        # 그래프는 끝났고 저장이나 카드 게시 전에 워커가 죽었다
+        # 그래프는 끝났고 저장이나 메시지 게시 전에 워커가 죽었다
         return snapshot.values, ["(완료)"]
     initial = {"incident_id": job.incident_id, "incident": job.incident.model_dump(mode="json"), "fingerprint": job.fingerprint}
     return c.graph.invoke(initial, config), []
 
 
 def plan_rollback(c: Container, job: AnalyzeJob, previous: dict) -> tuple[rollback.RollbackPR | None, str | None]:
-    """(열린 PR, 카드에 남길 사유). PR 열기는 같은 branch 이름이라 다시 불러도 PR은 하나다."""
+    """(열린 PR, 메시지에 남길 사유). PR 열기는 같은 branch 이름이라 다시 불러도 PR은 하나다."""
     s = c.settings
     plan = rollback.propose(job.incident, s.rollback_apps, timedelta(minutes=s.rollback_window_min))
     if plan is None:
@@ -52,7 +52,7 @@ def plan_rollback(c: Container, job: AnalyzeJob, previous: dict) -> tuple[rollba
         return None, "배포 직후 장애지만 GitHub App 설정이 없어 롤백 PR을 열지 않았다"
     try:
         return rollback.open_pr(c.infra, job.incident_id, job.incident, plan), None
-    except Exception as e:  # noqa: BLE001 - PR을 못 열어도 분석 카드는 보낸다
+    except Exception as e:  # noqa: BLE001 - PR을 못 열어도 분석 메시지는 보낸다
         log.exception("rollback PR for %s failed", job.incident_id)
         return None, f"롤백 PR을 열지 못했다: {type(e).__name__}"
 
@@ -78,7 +78,7 @@ def process_analyze(c: Container, msg_id: str, job: AnalyzeJob) -> dict:
         context_doc_ids=[d["doc_id"] for d in final.get("context_docs", [])], cost=final.get("cost", {}),
         rollback_pr=pr.model_dump(mode="json") if pr else None, rollback_note=note, resumed_from=resumed_from,
     )
-    # 다시 처리한 메시지가 카드를 두 번 올리지 않게 한다. 게시와 기록 사이에 죽으면 두 번 갈 수 있다
+    # 다시 처리한 큐 메시지가 Discord 메시지를 두 번 올리지 않게 한다. 게시와 기록 사이에 죽으면 두 번 갈 수 있다
     if not record.card_message_id:
         message_id = c.discord.post(channel, cards.incident_card(job.incident_id, final, pr, c.settings.runbook_base_url, note))
         if message_id:
@@ -88,7 +88,7 @@ def process_analyze(c: Container, msg_id: str, job: AnalyzeJob) -> dict:
 
 
 def process_resolved(c: Container, msg_id: str, job: ResolvedJob) -> str | None:
-    """카드에 해소 확인을 단다. 승인된 롤백이 있었으면 조치부터 해소까지 걸린 시간을 같이 남긴다."""
+    """메시지에 해소 확인을 단다. 승인된 롤백이 있었으면 조치부터 해소까지 걸린 시간을 같이 남긴다."""
     record = c.store.get(job.incident_id)
     text = None
     if record and record.card_message_id:
@@ -114,7 +114,7 @@ def process(c: Container, msg_id: str, job: QueueJob):
 @contextmanager
 def holding(queue: IncidentQueue, consumer: str, msg_id: str, claim_idle_ms: int) -> Iterator[None]:
     """처리가 회수 기준보다 길어져도 다른 워커가 같은 메시지를 가져가지 않게 붙잡아 둔다.
-    없으면 두 워커가 같은 장애를 이어 처리하고 둘 다 카드를 올린다."""
+    없으면 두 워커가 같은 장애를 이어 처리하고 둘 다 메시지를 올린다."""
     stop = threading.Event()
 
     def beat() -> None:

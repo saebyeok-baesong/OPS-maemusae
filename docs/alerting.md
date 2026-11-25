@@ -11,7 +11,7 @@
 | `app` | `images.yaml`의 앱 이름(`web`, `api`) | 대상 앱, 배포 이력, 롤백 |
 | `container` | 컨테이너 이름. Deployment의 컨테이너 이름을 앱 이름과 같게 둔다 | Pod 알림의 대상 앱, Loki 조회 |
 | `pod` | Pod 이름 | Pod 로그와 이벤트 |
-| `severity` | `critical`, `warning` | 카드 표시 |
+| `severity` | `critical`, `warning` | 메시지 표시 |
 
 ## 알림
 
@@ -72,7 +72,7 @@ groups:
 
 ## Alertmanager
 
-같은 장애는 한 묶음으로 보내고, 예외 알림이 떠 있으면 같은 앱의 5xx 알림은 막습니다. 해소 알림도 보내야 카드에 해소 확인이 달립니다.
+같은 장애는 한 묶음으로 보내고, 예외 알림이 떠 있으면 같은 앱의 5xx 알림은 막습니다. 해소 알림도 보내야 메시지에 해소 확인이 달립니다.
 
 ```yaml
 route:

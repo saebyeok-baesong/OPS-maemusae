@@ -1,4 +1,4 @@
-"""알림 접수부터 Discord 카드까지. 워커를 직접 부른다."""
+"""알림 접수부터 Discord 메시지까지. 워커를 직접 부른다."""
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -100,7 +100,7 @@ def test_resolved_alert_replies_on_the_card(evidence, webhook):
     TestClient(create_app(evidence), headers=TOKEN).post("/api/v1/alerts/alertmanager", json={**webhook, "alerts": [resolved]})
     [text] = drain(evidence)
     assert text == "✅ 알림 해소 확인 · 발생 28분 뒤"
-    assert evidence.discord.posts[-1][2] == "m1", "카드에 답으로 단다"
+    assert evidence.discord.posts[-1][2] == "m1", "메시지에 답으로 단다"
     assert evidence.store.get(incident_id).alert_resolved_at is not None
 
 
