@@ -43,7 +43,8 @@ jobs:
       contents: read
       id-token: write # ECR push 역할 OIDC
     env:
-      PUSH: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+      # 변수가 아직 없으면 push 없이 빌드만 한다 (INFRA terraform.yml 의 apply 와 같은 방식)
+      PUSH: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.AWS_ECR_PUSH_ROLE_ARN != '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - if: env.PUSH == 'true'
