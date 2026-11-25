@@ -5,6 +5,8 @@ README "지키는 것"의 약속 중 순서가 꼬일 때 깨지는 것을 두 �
 - `IncidentPipeline.tla`: 워커 큐 처리(`app/worker.py` `process_analyze`)와 롤백 승인(`app/rollback.py` `approve`)의 TLA+ 모델입니다. TLC가 워커 둘, 승인자 둘, 장애 최대 2개 안에서 가능한 모든 순서를 봅니다.
 - `tests/test_faults.py`: 모델이 찾은 순서를 실제 코드에 장애를 주입해 다시 일으킵니다. 지금 깨지는 약속은 `xfail(strict=True)`입니다.
 
+TLA+/TLC를 쓰는 이유: 여기서 깨지는 버그는 워커 종료, Redis 끊김, 동시 클릭이 나쁜 순서로 겹칠 때 생깁니다. 테스트는 사람이 떠올린 순서만 보지만, TLC는 정한 범위 안의 순서를 전부 봅니다. 모델은 손으로 쓴 것이라 코드와 어긋날 수 있어서, 찾은 순서는 `tests/test_faults.py`로 실제 코드에서 다시 확인합니다.
+
 ```bash
 ./verify/incident-pipeline/run.sh            # TLC, 검사 11개. 처음에는 tla2tools.jar 1.7.4 를 받는다
 .venv/bin/python -m pytest tests/test_faults.py -rxX
