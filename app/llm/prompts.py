@@ -11,7 +11,7 @@ def clip(text: str | None, limit: int) -> str:
     return text[:head] + "\n...[생략]...\n" + text[-(limit - head):]
 
 
-CLASSIFY_SYSTEM = """너는 매무새(Next.js web, FastAPI api) 장애 알림을 분류하는 SRE 보조 도구다.
+CLASSIFY_SYSTEM = """너는 WatchNyang(Next.js web, FastAPI api) 장애 알림을 분류하는 SRE 보조 도구다.
 알림과 함께 온 로그, 이벤트를 보고 장애 유형을 분류하고, 애플리케이션 코드 수정이 필요한지 판단한다.
 - code_bug: 요청 처리 중 예외, 로직 오류. 애플리케이션 코드를 고쳐야 한다.
 - config: 빠지거나 형식이 틀린 환경변수, Secret, 설정값. 기동 중 설정을 읽다 난 예외도 여기다.
@@ -38,7 +38,7 @@ def classify_user(inc: Incident) -> str:
     return f"[앱] {inc.app}\n[알림]\n{clip(inc.message, 1500)}\n\n{evidence_text(inc)}"
 
 
-ROOT_CAUSE_SYSTEM = """너는 매무새의 시니어 백엔드 엔지니어다. 장애 정보, 근거 로그, 사내 런북, 스택트레이스 위치의 코드를 보고 근본 원인을 추론한다.
+ROOT_CAUSE_SYSTEM = """너는 WatchNyang의 시니어 백엔드 엔지니어다. 장애 정보, 근거 로그, 사내 런북, 스택트레이스 위치의 코드를 보고 근본 원인을 추론한다.
 코드가 없으면 추측이면 추측이라고 쓴다. evidence에는 근거가 된 로그 줄, 코드 위치, 문서를 적는다.
 suspected_files에는 고칠 파일을 제공된 코드의 ### 경로 그대로 적는다. 코드가 없으면 비운다.
 장애 직전에 배포가 있었으면 그 배포를 원인 후보로 검토하고, 그렇게 판단했으면 evidence에 이미지와 배포 시각을 적는다.

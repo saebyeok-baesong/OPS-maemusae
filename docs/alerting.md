@@ -22,7 +22,7 @@
 | `KubePodCrashLooping` | kube-prometheus-stack 기본 규칙 | CrashLoopBackOff | Pod 마지막 로그, Pod 이벤트 | 배포 30분 안이면 |
 | `KubePodOOMKilled` | 직접 추가 | 마지막 종료 사유가 OOMKilled이고 재시작이 늘었다 | Pod 마지막 로그, Pod 이벤트 | 없음 |
 
-매무새 api는 Prometheus 지표를 내보내지 않습니다. 5xx 비율과 예외는 `backend/app/core/logging.py`의 JSON 로그(`logger`, `status`, `request_id`, `exc_info`)를 그대로 Loki 규칙으로 셉니다. web(Next.js)은 JSON 접근 로그가 없어서 1차 범위에서는 Pod 알림만 받습니다.
+WatchNyang api는 Prometheus 지표를 내보내지 않습니다. 5xx 비율과 예외는 `backend/app/core/logging.py`의 JSON 로그(`logger`, `status`, `request_id`, `exc_info`)를 그대로 Loki 규칙으로 셉니다. web(Next.js)은 JSON 접근 로그가 없어서 1차 범위에서는 Pod 알림만 받습니다.
 
 ### Loki 규칙
 

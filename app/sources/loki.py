@@ -1,4 +1,4 @@
-"""Loki에서 장애 근거를 꺼낸다. 매무새 api의 JSON 로그(backend/app/core/logging.py)를 그대로 쓴다.
+"""Loki에서 장애 근거를 꺼낸다. WatchNyang api의 JSON 로그(backend/app/core/logging.py)를 그대로 쓴다.
 
 처리하지 못한 예외는 logger=app.error 줄에 exc_info와 request_id가 실린다. Pod 알림은 그 Pod의 마지막 로그 줄을 쓴다.
 """

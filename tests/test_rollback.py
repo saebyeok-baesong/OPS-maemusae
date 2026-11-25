@@ -42,7 +42,7 @@ def test_rollback_pr_changes_only_the_app_line_and_is_idempotent(container, gith
     again = rollback.open_pr(container.infra, "inc1", incident(), PLAN)
 
     assert pr == again and len(github.pulls) == 1
-    assert pr.url.endswith("/INFRA-maemusae/pull/1")
+    assert pr.url.endswith("/INFRA-watch-nyang/pull/1")
     head = github.branches["ops/rollback-inc1-api"][0]
     assert parse_images(head.text) == {**before, "api": image("api", "a1")}
     assert github.pulls[0]["title"] == f"ops: api 롤백 {rollback.short(PLAN.from_image)} -> {rollback.short(PLAN.to_image)}"

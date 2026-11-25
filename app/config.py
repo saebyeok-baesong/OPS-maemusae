@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     retrieval_top_k: int = 5
     retrieval_lookback_days: int = 365
     context_chunk_max_chars: int = 1200
-    runbook_base_url: str = "https://github.com/saebyeok-baesong/OPS-maemusae/blob/main/knowledge"
+    runbook_base_url: str = "https://github.com/saebyeok-baesong/OPS-watch-nyang/blob/main/knowledge"
 
     # 근거 수집. 비우면 그 근거 없이 접수한다
     loki_url: str = ""
@@ -60,7 +60,7 @@ class Settings(BaseSettings):
     github_app_id: str = ""
     github_app_installation_id: str = ""
     github_app_private_key: str = ""
-    infra_repo: str = "saebyeok-baesong/INFRA-maemusae"
+    infra_repo: str = "saebyeok-baesong/INFRA-watch-nyang"
     infra_branch: str = "main"
     images_path: str = "gitops/apps/images.yaml"
     rollback_apps: list[str] = ["web", "api"]
@@ -72,7 +72,7 @@ class Settings(BaseSettings):
     code_app_id: str = ""
     code_app_installation_id: str = ""
     code_app_private_key: str = ""
-    service_repo: str = "saebyeok-baesong/SERVICE-maemusae"
+    service_repo: str = "saebyeok-baesong/SERVICE-watch-nyang"
     service_ref: str = "main"
     # 앱 -> SERVICE 레포 안 소스 디렉터리. 영향 범위가 Python만 보므로 지금은 api만. web(frontend, TS)은 나중에 더한다
     service_source_dirs: dict[str, str] = Field(default_factory=lambda: {"api": "backend"})

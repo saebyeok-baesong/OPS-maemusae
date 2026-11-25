@@ -12,7 +12,7 @@ from app.sources.github import GitHubAppAuth, InfraRepo
 from app.sources.kube import Kube
 from app.sources.loki import LokiClient
 
-OWNER, REPO = "saebyeok-baesong", "INFRA-maemusae"
+OWNER, REPO = "saebyeok-baesong", "INFRA-watch-nyang"
 PATH = "gitops/apps/images.yaml"
 
 
@@ -245,19 +245,19 @@ class FakeServiceGitHub:
         if request.url.host == "codeload.github.com":
             assert "Authorization" not in request.headers, "다른 호스트로 토큰을 보내지 않는다"
             self.downloads += 1
-            return httpx.Response(200, content=tarball(self.files, f"{OWNER}-SERVICE-maemusae-{SERVICE_SHA[:7]}"))
+            return httpx.Response(200, content=tarball(self.files, f"{OWNER}-SERVICE-watch-nyang-{SERVICE_SHA[:7]}"))
         assert request.headers["Authorization"] == "Bearer code-token"
         if self.fail:
             return httpx.Response(503)
-        path = path.removeprefix(f"/repos/{OWNER}/SERVICE-maemusae")
+        path = path.removeprefix(f"/repos/{OWNER}/SERVICE-watch-nyang")
         if path == "/commits/main":
             return httpx.Response(200, text=SERVICE_SHA)
         if path == f"/tarball/{SERVICE_SHA}":
-            return httpx.Response(302, headers={"Location": f"https://codeload.github.com/{OWNER}/SERVICE-maemusae/legacy.tar.gz/{SERVICE_SHA}?token=t"})
+            return httpx.Response(302, headers={"Location": f"https://codeload.github.com/{OWNER}/SERVICE-watch-nyang/legacy.tar.gz/{SERVICE_SHA}?token=t"})
         return httpx.Response(404)
 
     def source(self, private_key: str, cache_dir: str):
         from app.sources.service import ServiceSource
 
         http = httpx.Client(base_url="https://api.github.com", transport=httpx.MockTransport(self.handle))
-        return ServiceSource(f"{OWNER}/SERVICE-maemusae", "main", GitHubAppAuth("999", "111", private_key, http), http, cache_dir)
+        return ServiceSource(f"{OWNER}/SERVICE-watch-nyang", "main", GitHubAppAuth("999", "111", private_key, http), http, cache_dir)

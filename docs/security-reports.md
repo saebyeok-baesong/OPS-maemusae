@@ -19,10 +19,10 @@ GitHub Actions 러너는 클러스터 밖이라 ClusterIP인 api에 닿지 않�
 
 ## GitHub Actions: S3에 올리기
 
-계약은 [SPEC contracts/security-scan-upload.md](https://github.com/saebyeok-baesong/SPEC-maemusae/blob/main/contracts/security-scan-upload.md)에 있습니다. 요점만 옮깁니다.
+계약은 [SPEC contracts/security-scan-upload.md](https://github.com/saebyeok-baesong/SPEC-watch-nyang/blob/main/contracts/security-scan-upload.md)에 있습니다. 요점만 옮깁니다.
 
 - 버킷: `maemusae-security-scans-<account_id>`(OPS 환경변수 `SECURITY_SCAN_BUCKET`)
-- 객체 키: `<repo>/<tool>/<YYYY-MM-DD>/<github_run_id>.json`. `repo`는 `SERVICE-maemusae`, `OPS-maemusae`, `INFRA-maemusae` 중 하나, `tool`은 `trivy`, `gitleaks` 중 하나
+- 객체 키: `<repo>/<tool>/<YYYY-MM-DD>/<github_run_id>.json`. `repo`는 `SERVICE-watch-nyang`, `OPS-watch-nyang`, `INFRA-watch-nyang` 중 하나, `tool`은 `trivy`, `gitleaks` 중 하나
 - 본문: 도구의 JSON 출력 그대로. 감싸지 않는다
 - 쓰기: 각 레포의 GitHub OIDC 역할이 자기 `<repo>/` 아래에만 `PutObject`
 - 읽기: `incident` namespace의 `ops-security-ingest` ServiceAccount(Pod Identity)가 `ListBucket`, `GetObject`
