@@ -26,6 +26,8 @@ ALERT_KINDS: dict[str, AlertKind] = {
     "MaemusaeHighErrorRate": AlertKind(("app", "container"), frozenset({Need.STACKTRACE}), rollback=True),
     "KubePodCrashLooping": AlertKind(POD, frozenset({Need.POD_LOGS, Need.POD_EVENTS}), rollback=True),
     "KubePodOOMKilled": AlertKind(POD, frozenset({Need.POD_LOGS, Need.POD_EVENTS})),
+    # 준비 상태(DB 연결) 실패는 이미지를 되돌려도 낫지 않는다
+    "MaemusaeApiNotReady": AlertKind(("app", "container"), frozenset({Need.STACKTRACE})),
 }
 DEFAULT_KIND = AlertKind(("app", "container", "service", "pod", "namespace"))
 
