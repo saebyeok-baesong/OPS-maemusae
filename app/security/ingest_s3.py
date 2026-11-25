@@ -15,7 +15,7 @@ from app.security.store import SecurityStore
 
 log = logging.getLogger("ingest_s3")
 
-SCAN_REPOS = ("SERVICE-maemusae", "OPS-maemusae", "INFRA-maemusae")
+SCAN_REPOS = ("SERVICE-watch-nyang", "OPS-watch-nyang", "INFRA-watch-nyang")
 SCAN_TOOLS = (Source.TRIVY, Source.GITLEAKS)
 KEY_RE = re.compile(rf"^({'|'.join(SCAN_REPOS)})/({'|'.join(SCAN_TOOLS)})/(\d{{4}}-\d{{2}}-\d{{2}})/(\d+)\.json$")
 

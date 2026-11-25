@@ -30,7 +30,7 @@ def test_parsers_map_each_tool_to_findings():
     assert [(f.rule_id, f.severity) for f in trivy] == [("CVE-2026-0001", Severity.HIGH), ("DS002", Severity.MEDIUM),
                                                         ("aws-access-key-id", Severity.CRITICAL)]
     assert trivy[0].title == "fastapi 0.110.0 -> 0.115.1: DoS"
-    [leak] = parse_gitleaks("SERVICE-maemusae", GITLEAKS)
+    [leak] = parse_gitleaks("SERVICE-watch-nyang", GITLEAKS)
     assert leak.location == "backend/.env.sample:4@0123456" and leak.severity == Severity.CRITICAL
     assert [(f.rule_id, f.severity) for f in parse_kube_bench("eks", KUBE_BENCH)] == [("4.1.1", Severity.HIGH), ("4.2.6", Severity.MEDIUM)]
 
@@ -41,7 +41,7 @@ def send(c, source, target, report):
 
 
 def test_secret_values_never_reach_the_database(container):
-    assert send(container, "gitleaks", "SERVICE-maemusae", GITLEAKS).json()["findings"] == 1
+    assert send(container, "gitleaks", "SERVICE-watch-nyang", GITLEAKS).json()["findings"] == 1
     send(container, "trivy", "api", TRIVY)
     with container.security_db.connection() as conn:
         dump = str(conn.execute("SELECT * FROM security_findings").fetchall()) + str(conn.execute("SELECT * FROM security_runs").fetchall())

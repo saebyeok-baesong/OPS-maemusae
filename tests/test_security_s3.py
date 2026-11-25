@@ -32,16 +32,16 @@ def rows(c, sql: str) -> list[dict]:
 
 
 def test_key_contract():
-    k = parse_key("SERVICE-maemusae/gitleaks/2026-11-25/1234567890.json")
-    assert (k.repo, k.tool, k.day.isoformat(), k.run_id) == ("SERVICE-maemusae", "gitleaks", "2026-11-25", "1234567890")
-    for bad in ("SERVICE-maemusae/kube-bench/2026-11-25/1.json", "OTHER/trivy/2026-11-25/1.json",
-                "OPS-maemusae/trivy/2026-13-01/1.json", "OPS-maemusae/trivy/2026-11-25/1.sarif"):
+    k = parse_key("SERVICE-watch-nyang/gitleaks/2026-11-25/1234567890.json")
+    assert (k.repo, k.tool, k.day.isoformat(), k.run_id) == ("SERVICE-watch-nyang", "gitleaks", "2026-11-25", "1234567890")
+    for bad in ("SERVICE-watch-nyang/kube-bench/2026-11-25/1.json", "OTHER/trivy/2026-11-25/1.json",
+                "OPS-watch-nyang/trivy/2026-13-01/1.json", "OPS-watch-nyang/trivy/2026-11-25/1.sarif"):
         assert parse_key(bad) is None, bad
 
 
 def test_uploaded_scans_are_ingested_once(container, s3):
-    upload(s3, "SERVICE-maemusae/gitleaks/2026-11-25/111.json", GITLEAKS)
-    upload(s3, "OPS-maemusae/trivy/2026-11-25/222.json", TRIVY)
+    upload(s3, "SERVICE-watch-nyang/gitleaks/2026-11-25/111.json", GITLEAKS)
+    upload(s3, "OPS-watch-nyang/trivy/2026-11-25/222.json", TRIVY)
 
     first = ingest(container.security, s3, BUCKET, "saebyeok-baesong")
     again = ingest(container.security, s3, BUCKET, "saebyeok-baesong")
@@ -50,10 +50,10 @@ def test_uploaded_scans_are_ingested_once(container, s3):
     assert (again.ingested, again.findings) == (0, 0), "이미 넣은 키는 다시 넣지 않는다"
     runs = rows(container, "SELECT source, target, run_url, finding_count FROM security_runs ORDER BY id")
     assert runs == [
-        {"source": "trivy", "target": "OPS-maemusae", "finding_count": 3,
-         "run_url": "https://github.com/saebyeok-baesong/OPS-maemusae/actions/runs/222"},
-        {"source": "gitleaks", "target": "SERVICE-maemusae", "finding_count": 1,
-         "run_url": "https://github.com/saebyeok-baesong/SERVICE-maemusae/actions/runs/111"},
+        {"source": "trivy", "target": "OPS-watch-nyang", "finding_count": 3,
+         "run_url": "https://github.com/saebyeok-baesong/OPS-watch-nyang/actions/runs/222"},
+        {"source": "gitleaks", "target": "SERVICE-watch-nyang", "finding_count": 1,
+         "run_url": "https://github.com/saebyeok-baesong/SERVICE-watch-nyang/actions/runs/111"},
     ]
     [leak] = rows(container, "SELECT severity FROM security_findings WHERE source = 'gitleaks'")
     assert leak["severity"] == Severity.CRITICAL, "비밀번호 유출은 최고 심각도"
@@ -61,20 +61,20 @@ def test_uploaded_scans_are_ingested_once(container, s3):
 
 
 def test_new_object_is_picked_up_on_the_next_run(container, s3):
-    upload(s3, "SERVICE-maemusae/gitleaks/2026-11-25/111.json", GITLEAKS)
+    upload(s3, "SERVICE-watch-nyang/gitleaks/2026-11-25/111.json", GITLEAKS)
     ingest(container.security, s3, BUCKET, "o")
-    upload(s3, "INFRA-maemusae/trivy/2026-11-26/333.json", TRIVY)
+    upload(s3, "INFRA-watch-nyang/trivy/2026-11-26/333.json", TRIVY)
     assert ingest(container.security, s3, BUCKET, "o").ingested == 1
 
 
 def test_broken_objects_are_recorded_and_not_retried(container, s3):
-    upload(s3, "SERVICE-maemusae/trivy/2026-11-25/1.json", b"not json")
-    upload(s3, "SERVICE-maemusae/gitleaks/2026-11-25/2.json", {"not": "a list"})
+    upload(s3, "SERVICE-watch-nyang/trivy/2026-11-25/1.json", b"not json")
+    upload(s3, "SERVICE-watch-nyang/gitleaks/2026-11-25/2.json", {"not": "a list"})
     upload(s3, "somewhere/else.json", GITLEAKS)
 
     first = ingest(container.security, s3, BUCKET, "o")
     assert first.ingested == 0 and set(first.rejected) == {
-        "SERVICE-maemusae/trivy/2026-11-25/1.json", "SERVICE-maemusae/gitleaks/2026-11-25/2.json", "somewhere/else.json"}
+        "SERVICE-watch-nyang/trivy/2026-11-25/1.json", "SERVICE-watch-nyang/gitleaks/2026-11-25/2.json", "somewhere/else.json"}
     assert ingest(container.security, s3, BUCKET, "o").rejected == {}
     errors = rows(container, "SELECT key, error FROM security_scan_objects WHERE run_id IS NULL")
     assert len(errors) == 3 and all(e["error"] for e in errors)
@@ -84,8 +84,8 @@ def test_broken_objects_are_recorded_and_not_retried(container, s3):
 def test_two_jobs_racing_on_one_key_store_it_once(container):
     from app.security.findings import parse_gitleaks
 
-    findings = parse_gitleaks("SERVICE-maemusae", GITLEAKS)
-    key = "SERVICE-maemusae/gitleaks/2026-11-25/111.json"
-    assert container.security.record_object(key, "gitleaks", "SERVICE-maemusae", "u", findings) is not None
-    assert container.security.record_object(key, "gitleaks", "SERVICE-maemusae", "u", findings) is None
+    findings = parse_gitleaks("SERVICE-watch-nyang", GITLEAKS)
+    key = "SERVICE-watch-nyang/gitleaks/2026-11-25/111.json"
+    assert container.security.record_object(key, "gitleaks", "SERVICE-watch-nyang", "u", findings) is not None
+    assert container.security.record_object(key, "gitleaks", "SERVICE-watch-nyang", "u", findings) is None
     assert rows(container, "SELECT count(*) AS n FROM security_runs") == [{"n": 1}]

@@ -1,15 +1,15 @@
-# OPS-maemusae
+# OPS-watch-nyang
 
-매무새의 AI 장애 대응 자동화입니다. Alertmanager 경보를 받아 근거를 붙이고, 분류하고, 런북을 찾고, 코드 수정이 필요하면 SERVICE 코드를 보고 원인을 분석해 수정 코드(diff)와 영향 범위까지 만들어 Discord 장애 알림 하나로 알립니다. 수정안은 적용하지 않고 사람이 보고 SERVICE에 PR로 올립니다. 배포 직후 장애면 런북 안내든 원인 분석이든 메시지에 롤백 버튼이 붙고, 승인 역할을 가진 사람이 누르면 INFRA 레포의 롤백 PR이 리뷰 없이 merge됩니다. Discord 승인이 사람 리뷰입니다. 같은 워커가 보안 스캔 결과를 하루에 한 번 요약해 보안 채널에 올립니다.
+WatchNyang의 AI 장애 대응 자동화입니다. Alertmanager 경보를 받아 근거를 붙이고, 분류하고, 런북을 찾고, 코드 수정이 필요하면 SERVICE 코드를 보고 원인을 분석해 수정 코드(diff)와 영향 범위까지 만들어 Discord 장애 알림 하나로 알립니다. 수정안은 적용하지 않고 사람이 보고 SERVICE에 PR로 올립니다. 배포 직후 장애면 런북 안내든 원인 분석이든 메시지에 롤백 버튼이 붙고, 승인 역할을 가진 사람이 누르면 INFRA 레포의 롤백 PR이 리뷰 없이 merge됩니다. Discord 승인이 사람 리뷰입니다. 같은 워커가 보안 스캔 결과를 하루에 한 번 요약해 보안 채널에 올립니다.
 
-레포를 나눈 이유는 [SPEC adr/0001](https://github.com/saebyeok-baesong/SPEC-maemusae/blob/main/adr/0001-repo-structure.md)에 있습니다. Alertmanager payload 예시는 [SPEC fixtures](https://github.com/saebyeok-baesong/SPEC-maemusae/tree/main/fixtures)에, `images.yaml` 계약은 [SPEC contracts](https://github.com/saebyeok-baesong/SPEC-maemusae/tree/main/contracts)에 둡니다. 이 레포에는 쿠버네티스 매니페스트가 없습니다. 클러스터에 올리는 정의는 INFRA 레포 `gitops/`에 두고, 거기에 필요한 것은 [docs/infra-requirements.md](docs/infra-requirements.md)에 적었습니다.
+레포를 나눈 이유는 [SPEC adr/0001](https://github.com/saebyeok-baesong/SPEC-watch-nyang/blob/main/adr/0001-repo-structure.md)에 있습니다. Alertmanager payload 예시는 [SPEC fixtures](https://github.com/saebyeok-baesong/SPEC-watch-nyang/tree/main/fixtures)에, `images.yaml` 계약은 [SPEC contracts](https://github.com/saebyeok-baesong/SPEC-watch-nyang/tree/main/contracts)에 둡니다. 이 레포에는 쿠버네티스 매니페스트가 없습니다. 클러스터에 올리는 정의는 INFRA 레포 `gitops/`에 두고, 거기에 필요한 것은 [docs/infra-requirements.md](docs/infra-requirements.md)에 적었습니다.
 
 ## 흐름
 
 ```mermaid
 flowchart LR
     subgraph EKS
-      API_APP[매무새 api, web<br/>JSON 로그] --> LOKI[Loki]
+      API_APP[WatchNyang api, web<br/>JSON 로그] --> LOKI[Loki]
       KSM[kube-state-metrics] --> PROM[Prometheus]
       LOKI -->|ruler| AM[Alertmanager]
       PROM --> AM

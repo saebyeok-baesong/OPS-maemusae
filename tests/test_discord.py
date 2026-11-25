@@ -22,7 +22,7 @@ def state(outcome="analyzed", **extra) -> dict:
             "cost": {"usd": 0.0123}, **extra}
 
 
-PR = RollbackPR(plan=PLAN, number=7, url="https://github.com/saebyeok-baesong/INFRA-maemusae/pull/7", head_sha="abc")
+PR = RollbackPR(plan=PLAN, number=7, url="https://github.com/saebyeok-baesong/INFRA-watch-nyang/pull/7", head_sha="abc")
 
 
 def test_incident_card_has_summary_evidence_runbook_links_and_a_button():

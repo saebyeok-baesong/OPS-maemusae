@@ -61,7 +61,7 @@ def accept(c: Container, inc: Incident) -> tuple[str, bool]:
 
 
 def create_app(container: Container | None = None) -> FastAPI:
-    app = FastAPI(title="OPS-maemusae", version="0.1.0")
+    app = FastAPI(title="OPS-watch-nyang", version="0.1.0")
     app.state.container = container or Container()
 
     def get_container(request: Request) -> Container:

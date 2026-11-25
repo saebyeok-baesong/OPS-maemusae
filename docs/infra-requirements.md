@@ -22,7 +22,7 @@ OPS 이미지 하나를 INFRA `gitops/`에서 세 Deployment, 마이그레이션
 
 ### 보안 스캔 수집 CronJob
 
-GitHub Actions 러너는 클러스터 밖이라 ClusterIP인 api에 닿지 않습니다. 그래서 CI는 Trivy, gitleaks JSON을 S3에 올리고, 이 CronJob이 가져와 security DB에 넣습니다. 계약은 [SPEC contracts/security-scan-upload.md](https://github.com/saebyeok-baesong/SPEC-maemusae/blob/main/contracts/security-scan-upload.md)에 있습니다.
+GitHub Actions 러너는 클러스터 밖이라 ClusterIP인 api에 닿지 않습니다. 그래서 CI는 Trivy, gitleaks JSON을 S3에 올리고, 이 CronJob이 가져와 security DB에 넣습니다. 계약은 [SPEC contracts/security-scan-upload.md](https://github.com/saebyeok-baesong/SPEC-watch-nyang/blob/main/contracts/security-scan-upload.md)에 있습니다.
 
 | 항목 | 값 |
 | --- | --- |
@@ -84,7 +84,7 @@ Discord에서 사람이 승인했으면 merge 때 GitHub 리뷰를 다시 받지
 
 1. 조직 `saebyeok-baesong`에 GitHub App을 만듭니다. Webhook은 끕니다.
 2. Repository permissions는 Contents(Read and write), Pull requests(Read and write), Metadata(Read)만 줍니다. Workflows, Administration, Actions, Secrets를 비롯한 다른 권한과 Organization permissions는 주지 않습니다.
-3. 설치 범위는 "Only select repositories"로 INFRA-maemusae 하나만 고릅니다. 설치 ID가 `GITHUB_APP_INSTALLATION_ID`입니다.
+3. 설치 범위는 "Only select repositories"로 INFRA-watch-nyang 하나만 고릅니다. 설치 ID가 `GITHUB_APP_INSTALLATION_ID`입니다.
 4. private key를 만들어 Secrets Manager `maemusae/ops`의 `GITHUB_APP_PRIVATE_KEY`로 넣습니다. `maemusae/` 경로 밖에는 두지 않고, 내려받은 `.pem` 파일은 넣은 뒤 지웁니다. 이 키를 담은 쿠버네티스 Secret은 approvals ServiceAccount만 읽게 합니다(지금 코드의 api, worker 사용은 PR 본문의 미결 질문).
 5. INFRA `main` ruleset의 우회 목록(bypass list)에 이 App 하나만 넣습니다. 우회는 `main` 브랜치에만 적용합니다. 다른 브랜치, 다른 레포, 다른 App이나 사람으로 우회 범위를 넓히려면 보안팀 리뷰를 받습니다.
 
@@ -94,7 +94,7 @@ GitHub App 권한은 파일 단위로 좁힐 수 없습니다. Contents 쓰기�
 - 바뀐 파일이 `gitops/apps/images.yaml` 하나이고 상태가 modified다.
 - 바뀐 줄이 롤백 대상 앱 한 줄뿐이고, 그 줄이 제안 때 이미지에서 직전 이미지로 바뀐다.
 
-봇이 쓰는 경로는 `gitops/apps/images.yaml` 한 파일입니다. 형식은 [SPEC contracts/images-yaml.md](https://github.com/saebyeok-baesong/SPEC-maemusae/blob/main/contracts/images-yaml.md)를 따릅니다.
+봇이 쓰는 경로는 `gitops/apps/images.yaml` 한 파일입니다. 형식은 [SPEC contracts/images-yaml.md](https://github.com/saebyeok-baesong/SPEC-watch-nyang/blob/main/contracts/images-yaml.md)를 따릅니다.
 
 ### 코드 읽기 App
 
@@ -102,14 +102,14 @@ GitHub App 권한은 파일 단위로 좁힐 수 없습니다. Contents 쓰기�
 
 1. 조직 `saebyeok-baesong`에 GitHub App을 만듭니다. Webhook은 끕니다.
 2. Repository permissions는 Contents(Read-only), Metadata(Read-only)만 줍니다.
-3. 설치 범위는 "Only select repositories"로 SERVICE-maemusae 하나만 고릅니다. 설치 ID가 `CODE_APP_INSTALLATION_ID`입니다.
+3. 설치 범위는 "Only select repositories"로 SERVICE-watch-nyang 하나만 고릅니다. 설치 ID가 `CODE_APP_INSTALLATION_ID`입니다.
 4. private key는 Secrets Manager `maemusae/ops`의 `CODE_APP_PRIVATE_KEY`로 넣고, 그 Secret은 worker ServiceAccount만 읽게 합니다.
 
 worker는 커밋마다 SERVICE `backend/`의 `.py` 파일만 `/tmp/ops-source`(`SOURCE_CACHE_DIR`)에 풀어 둡니다. 루트 파일시스템을 읽기 전용으로 두면 이 경로에 `emptyDir`(`sizeLimit: 500Mi`)를 붙입니다. Pod가 다시 뜨면 다시 받습니다.
 
 ### 이미지 PR App
 
-SERVICE, OPS의 CI가 씁니다. 권한은 Contents, Pull requests 쓰기와 Metadata 읽기이고 INFRA-maemusae에만 설치합니다. 키는 각 레포의 GitHub Actions Secrets에 둡니다. ruleset 우회 목록에는 넣지 않습니다.
+SERVICE, OPS의 CI가 씁니다. 권한은 Contents, Pull requests 쓰기와 Metadata 읽기이고 INFRA-watch-nyang에만 설치합니다. 키는 각 레포의 GitHub Actions Secrets에 둡니다. ruleset 우회 목록에는 넣지 않습니다.
 
 ## Discord 봇
 
