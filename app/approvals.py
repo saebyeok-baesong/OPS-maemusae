@@ -56,7 +56,10 @@ def approve_from_cli(c: Container, incident_id: str, operator: str) -> Approval:
 def serve(c: Container) -> None:
     import discord
 
-    client = discord.Client(intents=discord.Intents.none())
+    # guilds intent(특권 아님)가 없으면 서버 역할이 캐시에 없어 interaction.user.roles가 늘 빈 목록이다
+    intents = discord.Intents.none()
+    intents.guilds = True
+    client = discord.Client(intents=intents)
 
     @client.event
     async def on_ready() -> None:
