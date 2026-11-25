@@ -1,0 +1,26 @@
+# OPS docs/alerting.md의 Loki 규칙과 같은 이름, 라벨, 식이다. 데모라 창을 5m에서 1m로, for를 2m에서 20s로 줄였다
+groups:
+  - name: maemusae-api
+    rules:
+      - alert: MaemusaeUnhandledException
+        expr: |
+          sum by (namespace, container) (
+            count_over_time({namespace="maemusae", container="api"} | json | logger="app.error" [1m])
+          ) > 0
+        labels:
+          severity: critical
+          app: api
+        annotations:
+          summary: "api에서 처리하지 못한 예외가 1분 동안 {{ $value }}건 났습니다"
+      - alert: MaemusaeHighErrorRate
+        expr: |
+          sum by (namespace, container) (count_over_time({namespace="maemusae", container="api"} | json | logger="app.access" | status >= 500 [1m]))
+          /
+          sum by (namespace, container) (count_over_time({namespace="maemusae", container="api"} | json | logger="app.access" [1m]))
+          > 0.05
+        for: 20s
+        labels:
+          severity: warning
+          app: api
+        annotations:
+          summary: "api 5xx 비율이 1분 동안 {{ $value | humanizePercentage }}입니다"

@@ -9,3 +9,6 @@ __pycache__/
 .pytest_cache/
 .venv/
 .DS_Store
+
+# TLC 출력
+verify/incident-pipeline/out/

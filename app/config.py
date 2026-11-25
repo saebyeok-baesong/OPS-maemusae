@@ -1,6 +1,6 @@
 """환경변수 설정. 로컬은 .env, 클러스터는 Secret과 ConfigMap으로 넣는다."""
 from functools import lru_cache
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
@@ -55,6 +55,8 @@ class Settings(BaseSettings):
     discord_security_channel_id: str = ""
     # 승인할 수 있는 Discord 역할 ID. 쉼표로 나눈다. 이 중 하나라도 가진 사람이 승인한다. 비우면 아무도 승인하지 못한다
     discord_approver_role_ids: Annotated[list[str], NoDecode] = []
+    # python -m app.approvals approve(Discord 없이 승인)를 허용한다. 로컬 데모만 켠다. 운영에서 켤지는 정하지 않았다
+    cli_approval_enabled: bool = False
 
     # 롤백(INFRA 레포 PR)
     github_app_id: str = ""
@@ -63,6 +65,11 @@ class Settings(BaseSettings):
     infra_repo: str = "saebyeok-baesong/INFRA-watch-nyang"
     infra_branch: str = "main"
     images_path: str = "gitops/apps/images.yaml"
+    # github: GitHub App으로 INFRA 레포. local-git: 로컬 bare 저장소(demo/ 전용, GitHub 없이 롤백까지 돌려 본다)
+    infra_repo_backend: Literal["github", "local-git"] = "github"
+    infra_local_git_dir: str = "/gitops/infra.git"
+    # local-git PR에는 웹 주소가 없다. Discord 링크 버튼이 http 주소를 요구해서 자리표시 주소를 쓴다
+    infra_local_pr_url: str = "http://localhost/local-gitops/pulls"
     rollback_apps: list[str] = ["web", "api"]
     rollback_window_min: int = 30
     deploy_history_depth: int = 20

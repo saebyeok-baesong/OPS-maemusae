@@ -46,6 +46,10 @@ def demo_responder(schema: type[BaseModel], messages: list[BaseMessage]) -> Base
         if "OOMKilled" in prompt:
             return Classification(category="infra", needs_code_fix=False, confidence=0.9,
                                   summary="메모리 한도 초과로 컨테이너가 종료됐다", keywords=["OOMKilled", "memory", "limits"])
+        if "NotReady" in prompt:
+            return Classification(category="dependency", needs_code_fix=False, confidence=0.85,
+                                  summary="api가 DB에 연결하지 못해 준비 상태 확인이 실패한다",
+                                  keywords=["NotReady", "database", "OperationalError", "연결"])
         if "CrashLoop" in prompt:
             return Classification(category="config", needs_code_fix=False, confidence=0.8,
                                   summary="기동 중 설정을 읽다 실패해 재시작을 반복한다", keywords=["CrashLoopBackOff", "Secret", "설정"])

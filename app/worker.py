@@ -65,9 +65,14 @@ def process_analyze(c: Container, msg_id: str, job: AnalyzeJob) -> dict:
     except Exception as e:  # noqa: BLE001 - 어떤 실패든 DLQ로 보내고 다음 메시지를 처리한다
         log.exception("incident %s failed", job.incident_id)
         c.store.set_status(job.incident_id, "failed", error=str(e))
-        c.queue.dead_letter(msg_id, job, repr(e))
         state = {"incident": job.incident.model_dump(mode="json"), "outcome": "failed", "error": str(e)}
-        c.discord.post(channel, cards.incident_card(job.incident_id, state, None, c.settings.runbook_base_url))
+        # 알림부터 올리고 DLQ로 보낸다. dead_letter가 XACK한 뒤에 죽으면 아무도 메시지를 회수하지 않아 장애가 조용히 사라진다
+        record = c.store.get(job.incident_id)
+        if not (record and record.card_message_id):
+            message_id = c.discord.post(channel, cards.incident_card(job.incident_id, state, None, c.settings.runbook_base_url))
+            if message_id:
+                c.store.set_card(job.incident_id, channel, message_id)
+        c.queue.dead_letter(msg_id, job, repr(e))
         return state
 
     record = c.store.get(job.incident_id)
@@ -92,14 +97,17 @@ def process_resolved(c: Container, msg_id: str, job: ResolvedJob) -> str | None:
     """메시지에 해소 확인을 단다. 승인된 롤백이 있었으면 조치부터 해소까지 걸린 시간을 같이 남긴다."""
     record = c.store.get(job.incident_id)
     text = None
-    if record and record.card_message_id:
+    # 메시지를 올리지 못했으면(Discord를 끈 로컬 데모 포함) 답 대신 새 메시지로 남긴다
+    if record:
         minutes = (job.resolved_at - record.incident.occurred_at).total_seconds() / 60
         text = f"✅ 알림 해소 확인 · 발생 {minutes:.0f}분 뒤"
         merged = [a for a in c.store.actions(job.incident_id) if a["status"] == rollback.Status.MERGED and a["finished_at"]]
         if merged:
             after = (job.resolved_at - merged[0]["finished_at"]).total_seconds() / 60
-            text += f" · 롤백 merge {after:.0f}분 뒤 (승인 <@{merged[0]['approver']}>)"
-        c.discord.post(record.card_channel_id, cards.reply(text), reply_to=record.card_message_id)
+            approver = merged[0]["approver"]
+            text += f" · 롤백 merge {after:.0f}분 뒤 (승인 {f'`{approver}`' if approver.startswith('cli:') else f'<@{approver}>'})"
+        channel = record.card_channel_id or c.settings.discord_incident_channel_id
+        c.discord.post(channel, cards.reply(text), reply_to=record.card_message_id)
     c.queue.ack(msg_id)
     return text
 

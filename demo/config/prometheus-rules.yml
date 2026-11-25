@@ -1,0 +1,13 @@
+groups:
+  - name: maemusae-api-ready
+    rules:
+      # 배포 때 컨테이너를 바꾸는 몇 초는 넘기도록 for를 둔다
+      - alert: MaemusaeApiNotReady
+        expr: probe_success{job="api-ready"} == 0
+        for: 10s
+        # DB가 돌아온 뒤에도 예외 알림의 Loki 창(1m) 동안은 떠 있어야 inhibit이 풀리며 예외 알림이 새로 나가지 않는다
+        keep_firing_for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "api 준비 상태 확인(/health/ready)이 실패합니다. DB 연결을 확인하세요"

@@ -1,0 +1,12 @@
+[
+ {
+  "RuleID": "github-pat",
+  "Description": "GitHub Personal Access Token",
+  "File": "backend/.env.sample",
+  "StartLine": 4,
+  "Commit": "0123456789abcdef",
+  "Secret": "demo-not-a-real-secret",
+  "Match": "TOKEN=demo-not-a-real-secret",
+  "Fingerprint": "x"
+ }
+]

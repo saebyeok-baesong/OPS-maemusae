@@ -1,0 +1,30 @@
+{
+ "Controls": [
+  {
+   "id": "4",
+   "node_type": "node",
+   "tests": [
+    {
+     "section": "4.1",
+     "results": [
+      {
+       "test_number": "4.1.1",
+       "test_desc": "kubelet 서비스 파일 권한 600",
+       "status": "FAIL"
+      },
+      {
+       "test_number": "4.1.2",
+       "test_desc": "소유자 root",
+       "status": "PASS"
+      },
+      {
+       "test_number": "4.2.6",
+       "test_desc": "protect-kernel-defaults",
+       "status": "WARN"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
