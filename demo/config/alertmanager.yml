@@ -1,0 +1,32 @@
+# OPS docs/alerting.md의 Alertmanager 설정과 같은 모양이다. 데모라 group_wait 30s -> 15s, group_interval 5m -> 10s.
+# group_wait를 더 줄이면 DB 장애 때 예외 알림이 준비 상태 알림보다 먼저 나가 inhibit이 듣지 않는다
+route:
+  receiver: ops-maemusae
+  routes:
+    - receiver: ops-maemusae
+      matchers: ['namespace="maemusae"']
+      group_by: [alertname, namespace, app, container]
+      group_wait: 15s
+      group_interval: 10s
+      repeat_interval: 4h
+receivers:
+  - name: ops-maemusae
+    webhook_configs:
+      - url: http://ops-api:8000/api/v1/alerts/alertmanager
+        send_resolved: true
+        http_config:
+          authorization:
+            type: Bearer
+            # compose.yaml의 ALERTMANAGER_TOKEN과 같은 로컬 전용 값
+            credentials: demo-alertmanager-token
+inhibit_rules:
+  - source_matchers: ['alertname="MaemusaeUnhandledException"']
+    target_matchers: ['alertname="MaemusaeHighErrorRate"']
+    equal: [namespace, app]
+  # DB가 원인이면 예외와 5xx 알림은 결과다. 준비 상태 알림 하나만 보낸다
+  - source_matchers: ['alertname="MaemusaeApiNotReady"']
+    target_matchers: ['alertname="MaemusaeUnhandledException"']
+    equal: [namespace, app]
+  - source_matchers: ['alertname="MaemusaeApiNotReady"']
+    target_matchers: ['alertname="MaemusaeHighErrorRate"']
+    equal: [namespace, app]

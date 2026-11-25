@@ -1,0 +1,44 @@
+// api 컨테이너의 JSON 로그를 Loki로 보낸다. 쿠버네티스 라벨(namespace, container, app, pod)을 흉내 낸다
+discovery.docker "containers" {
+  host             = "unix:///var/run/docker.sock"
+  refresh_interval = "5s"
+  filter {
+    name   = "label"
+    values = ["demo.logs=true"]
+  }
+}
+
+discovery.relabel "containers" {
+  targets = []
+  rule {
+    source_labels = ["__meta_docker_container_label_demo_namespace"]
+    target_label  = "namespace"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_label_demo_app"]
+    target_label  = "app"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_label_demo_app"]
+    target_label  = "container"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "pod"
+  }
+}
+
+loki.source.docker "containers" {
+  host             = "unix:///var/run/docker.sock"
+  targets          = discovery.docker.containers.targets
+  relabel_rules    = discovery.relabel.containers.rules
+  refresh_interval = "5s"
+  forward_to       = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

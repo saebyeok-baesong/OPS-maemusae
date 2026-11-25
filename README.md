@@ -37,7 +37,7 @@ flowchart LR
 
 | 단계 | 하는 일 | 코드 |
 | --- | --- | --- |
-| 1 감지 | 5xx 비율, 처리 못 한 예외(Loki 규칙), CrashLoop, OOMKilled. 규칙은 INFRA에 둔다 | [docs/alerting.md](docs/alerting.md) |
+| 1 감지 | 5xx 비율, 처리 못 한 예외(Loki 규칙), 준비 상태(DB) 실패, CrashLoop, OOMKilled. 규칙은 INFRA에 둔다 | [docs/alerting.md](docs/alerting.md) |
 | 2 전달 | Alertmanager가 같은 장애를 묶고, 예외 경보가 뜨면 5xx 경보를 막고, Bearer 토큰으로 보낸다 | [docs/alerting.md](docs/alerting.md) |
 | 3 접수 | payload 파싱, 지문 중복 제거, 스택트레이스와 Pod 로그, Pod 이벤트, 직전 배포를 붙여 큐에 넣고 202 | `app/main.py`, `app/alerts.py` |
 | 4 분석 | 분류(경량 모델, 지문 캐시) -> 런북 검색(pgvector + 키워드) -> 코드 수정이 필요하면 스택트레이스 위치의 SERVICE 코드로 원인 분석 -> 수정 코드 생성(고성능 모델, diff가 아니면 사유를 붙여 한 번 더) -> diff 분석(바뀐 함수, 시그니처 변경) -> 영향 범위(import 그래프 역추적, 위험도). 장애당 비용 상한 | `app/graph/`, `app/llm/`, `app/rag/`, `app/analysis/` |
@@ -55,12 +55,12 @@ flowchart LR
 | `app/rollback.py` | 롤백 제안 조건, PR 내용, 승인 처리(권한, 중복, 제안 뒤 변경 확인, PR diff 확인, merge) |
 | `app/main.py` | api 진입점. 알림 webhook, kube-bench 결과 webhook, 장애 조회, `/healthz`, `/metrics` |
 | `app/worker.py` | worker 진입점. 큐 소비, 그래프 실행, 롤백 PR 열기, 메시지 게시, 해소 확인, 보안 보고 시각 확인 |
-| `app/approvals.py` | approvals 진입점. Discord Gateway 봇. 버튼 클릭을 받아 `rollback.approve`를 부른다 |
+| `app/approvals.py` | approvals 진입점. Discord Gateway 봇. 버튼 클릭을 받아 `rollback.approve`를 부른다. `approve <장애 ID> --by <이름>`은 Discord 없이 승인한다(`CLI_APPROVAL_ENABLED`) |
 | `app/graph/` | LangGraph 노드와 흐름. 체크포인터는 incident DB |
 | `app/llm/` | 모델 분리와 응답 캐시(`router.py`), 비용과 예산(`cost.py`), 프롬프트, 출력 스키마, 가짜 LLM |
 | `app/rag/` | 문단 경계 청킹, 임베딩 캐시, 증분 수집, 메타데이터 필터 + 벡터 + 키워드(RRF) 검색 |
 | `app/analysis/` | 코드 근거 자르기(`code_context.py`), diff 분석(`diff.py`), 영향 범위(`impact.py`). 지금은 Python(api, SERVICE `backend/`)만 본다 |
-| `app/sources/` | 바깥 시스템 클라이언트. Loki, Kubernetes 이벤트, GitHub App(INFRA 롤백, SERVICE 코드 읽기) |
+| `app/sources/` | 바깥 시스템 클라이언트. Loki, Kubernetes 이벤트, GitHub App(INFRA 롤백, SERVICE 코드 읽기), 로컬 데모용 git 저장소(`local_git.py`) |
 | `app/discord/` | Discord REST 클라이언트와 메시지 빌더 |
 | `app/security/` | 도구별 파서(Trivy, gitleaks, kube-bench), S3 수집 진입점(`ingest_s3.py`), security DB 저장, 일일 보고 |
 | `app/core/` | 에러 지문, Redis Streams 큐, 장애 저장소 |
@@ -98,6 +98,8 @@ flowchart LR
 
    Discord 토큰이 없으면 메시지 내용이 worker 로그에 `[discord disabled]`로 찍힙니다. 실제 채널로 보내려면 `.env`에 `DISCORD_*`를 채우고 `docker compose --profile discord up -d`로 승인 봇도 띄웁니다.
 
+노트북 한 대에서 WatchNyang api, 알림 규칙, OPS를 같이 띄우고 나쁜 배포와 롤백, DB 장애를 재현하는 통합 데모는 [demo/README.md](demo/README.md)에 있습니다. GitHub과 Argo CD 대신 로컬 git 저장소와 배포 스크립트를 씁니다.
+
 ## 환경변수
 
 전체 목록과 기본값은 `app/config.py`에 있습니다. 운영에서 꼭 넣는 값은 다음과 같습니다.
@@ -116,10 +118,12 @@ flowchart LR
 | `LOKI_URL` | api | 스택트레이스와 Pod 로그 조회 |
 | `DISCORD_BOT_TOKEN` | worker, approvals | 메시지 게시와 버튼 수신을 같은 봇이 한다 |
 | `DISCORD_INCIDENT_CHANNEL_ID`, `DISCORD_SECURITY_CHANNEL_ID` | worker | 장애 채널, 보안 채널 |
+| `CLI_APPROVAL_ENABLED` | api, approvals | `true`면 `python -m app.approvals approve`로 Discord 없이 승인할 수 있다. 기본 `false`, 로컬 데모만 켠다 |
 | `DISCORD_APPROVER_ROLE_IDS` | approvals | 승인 역할 ID, 쉼표로 나눈다. 하나라도 가진 사람이 승인한다. 처음에는 풀스택, 인프라, 보안팀 셋이고 나중에 줄인다. 비우면 아무도 승인하지 못한다 |
 | `GITHUB_APP_ID`, `GITHUB_APP_INSTALLATION_ID`, `GITHUB_APP_PRIVATE_KEY` | api, worker, approvals | 롤백 App. INFRA 레포 읽기(배포 이력)와 쓰기(롤백 PR, merge). CI의 이미지 PR App과 다른 App이다 |
 | `CODE_APP_ID`, `CODE_APP_INSTALLATION_ID`, `CODE_APP_PRIVATE_KEY` | worker | 코드 읽기 App. SERVICE 레포 Contents 읽기만. 비우면 코드 없이 원인 분석에서 끝난다 |
 | `SERVICE_SOURCE_DIRS`, `SERVICE_REF` | worker | 수정안을 만들 앱과 SERVICE 안 소스 디렉터리(기본 `{"api": "backend"}`), 읽을 ref(기본 `main`) |
+| `INFRA_REPO_BACKEND` | api, worker, approvals | `github`(기본) 또는 `local-git`. `local-git`은 `INFRA_LOCAL_GIT_DIR`의 bare git 저장소를 INFRA 레포로 쓴다. 로컬 데모 전용 |
 | `ROLLBACK_APPS`, `ROLLBACK_WINDOW_MIN` | worker | 롤백을 제안할 앱과 배포 뒤 시간 범위(기본 web, api와 30분) |
 | `SECURITY_SCAN_BUCKET`, `AWS_REGION` | ingest-s3 | CI 스캔 결과 버킷(`maemusae-security-scans-<account_id>`). 자격은 Pod Identity |
 
