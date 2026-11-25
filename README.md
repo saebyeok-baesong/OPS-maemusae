@@ -138,4 +138,5 @@ flowchart LR
 - 수정안은 SERVICE에 적용하거나 실행하지 않습니다. 코드 읽기 App은 쓰기 권한이 없고, LLM이 준 경로는 받은 소스 디렉터리 밖을 읽지 못합니다.
 - gitleaks와 Trivy가 찾은 비밀값은 저장하지 않습니다. 규칙 ID와 위치만 남깁니다. gitleaks 결과는 모두 CRITICAL입니다.
 - S3의 같은 스캔 객체는 한 번만 넣습니다. 가져온 키를 security DB에 unique로 남깁니다.
+- 워커 강제 종료, Redis 끊김, GitHub 오류, 동시 승인을 주입해 위 약속을 확인하는 TLA+ 모델과 장애 주입 테스트는 [verify/incident-pipeline/README.md](verify/incident-pipeline/README.md)에 있습니다. 지금 코드에서 깨지는 약속도 거기에 적었습니다.
 - Redis는 클러스터 안 Pod라 클러스터를 내리면 큐가 비워집니다. 받아들인 결정이고 영향은 [docs/infra-requirements.md](docs/infra-requirements.md#redis)에 있습니다.

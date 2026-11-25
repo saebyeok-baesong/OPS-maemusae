@@ -65,9 +65,14 @@ def process_analyze(c: Container, msg_id: str, job: AnalyzeJob) -> dict:
     except Exception as e:  # noqa: BLE001 - 어떤 실패든 DLQ로 보내고 다음 메시지를 처리한다
         log.exception("incident %s failed", job.incident_id)
         c.store.set_status(job.incident_id, "failed", error=str(e))
-        c.queue.dead_letter(msg_id, job, repr(e))
         state = {"incident": job.incident.model_dump(mode="json"), "outcome": "failed", "error": str(e)}
-        c.discord.post(channel, cards.incident_card(job.incident_id, state, None, c.settings.runbook_base_url))
+        # 알림부터 올리고 DLQ로 보낸다. dead_letter가 XACK한 뒤에 죽으면 아무도 메시지를 회수하지 않아 장애가 조용히 사라진다
+        record = c.store.get(job.incident_id)
+        if not (record and record.card_message_id):
+            message_id = c.discord.post(channel, cards.incident_card(job.incident_id, state, None, c.settings.runbook_base_url))
+            if message_id:
+                c.store.set_card(job.incident_id, channel, message_id)
+        c.queue.dead_letter(msg_id, job, repr(e))
         return state
 
     record = c.store.get(job.incident_id)
