@@ -17,6 +17,13 @@ class RootCause(BaseModel):
     evidence: list[str] = Field(default_factory=list)
     suspected_area: str = Field(description="의심되는 모듈, 엔드포인트, 설정 이름")
     next_steps: list[str] = Field(default_factory=list, description="담당자가 할 일. 코드 수정 방향 포함")
+    suspected_files: list[str] = Field(default_factory=list, description="고칠 파일. 제공된 코드의 ### 경로 그대로")
+
+
+class FixProposal(BaseModel):
+    patch: str = Field(description="소스 디렉터리 기준 unified diff (--- a/경로, +++ b/경로)")
+    explanation: str
+    risk: Literal["low", "medium", "high"] = "medium"
 
 
 class SecuritySummary(BaseModel):

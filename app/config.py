@@ -67,6 +67,19 @@ class Settings(BaseSettings):
     rollback_window_min: int = 30
     deploy_history_depth: int = 20
 
+    # 코드 수정안(원인 분석, 수정 코드 생성, diff, 영향 범위). 코드 읽기 App은 SERVICE 하나에 Contents, Metadata 읽기만 준다.
+    # 비우면 코드 없이 원인 분석에서 끝난다
+    code_app_id: str = ""
+    code_app_installation_id: str = ""
+    code_app_private_key: str = ""
+    service_repo: str = "saebyeok-baesong/SERVICE-maemusae"
+    service_ref: str = "main"
+    # 앱 -> SERVICE 레포 안 소스 디렉터리. 영향 범위가 Python만 보므로 지금은 api만. web(frontend, TS)은 나중에 더한다
+    service_source_dirs: dict[str, str] = Field(default_factory=lambda: {"api": "backend"})
+    source_cache_dir: str = "/tmp/ops-source"
+    # 수정안이 diff 형식이 아니면 실패 사유를 붙여 다시 만든다. 이 횟수까지
+    fix_max_attempts: int = 2
+
     # 보안 일일 보고(한국 시각)
     security_report_hour_kst: int = 9
     # GitHub Actions 스캔 결과가 올라오는 S3 버킷(maemusae-security-scans-<account_id>). 비우면 수집 Job이 돌지 않는다

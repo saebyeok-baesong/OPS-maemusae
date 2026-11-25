@@ -8,7 +8,7 @@ from collections.abc import Callable
 from langchain_core.messages import AIMessage, BaseMessage
 from pydantic import BaseModel
 
-from app.llm.schemas import Classification, RootCause, SecuritySummary
+from app.llm.schemas import Classification, FixProposal, RootCause, SecuritySummary
 
 Responder = Callable[[type[BaseModel], list[BaseMessage]], BaseModel]
 
@@ -55,6 +55,9 @@ def demo_responder(schema: type[BaseModel], messages: list[BaseMessage]) -> Base
         return RootCause(root_cause="스택트레이스의 마지막 프레임에서 예외가 처리되지 않았다(가짜 LLM 응답)",
                          evidence=["스택트레이스 마지막 프레임"], suspected_area="스택트레이스의 모듈",
                          next_steps=["직전 배포의 변경을 확인한다", "같은 request_id의 로그를 본다"])
+    if schema is FixProposal:
+        # 가짜 LLM은 코드를 고치지 못한다. diff가 아니므로 수정안 없이 원인 분석으로 끝난다
+        return FixProposal(patch="", explanation="가짜 LLM 응답", risk="low")
     if schema is SecuritySummary:
         return SecuritySummary(summary="새 결과를 심각도 순으로 확인한다(가짜 LLM 응답)", top_actions=["CRITICAL부터 처리한다"])
     raise ValueError(f"demo_responder: unknown schema {schema.__name__}")

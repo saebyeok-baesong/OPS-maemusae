@@ -1,6 +1,6 @@
 # OPS-maemusae
 
-매무새의 AI 장애 대응 자동화입니다. Alertmanager 경보를 받아 근거를 붙이고, 분류하고, 런북을 찾고, 필요하면 원인을 분석해 Discord 장애 알림 하나로 알립니다. 배포 직후 장애면 런북 안내든 원인 분석이든 메시지에 롤백 버튼이 붙고, 승인 역할을 가진 사람이 누르면 INFRA 레포의 롤백 PR이 리뷰 없이 merge됩니다. Discord 승인이 사람 리뷰입니다. 같은 워커가 보안 스캔 결과를 하루에 한 번 요약해 보안 채널에 올립니다.
+매무새의 AI 장애 대응 자동화입니다. Alertmanager 경보를 받아 근거를 붙이고, 분류하고, 런북을 찾고, 코드 수정이 필요하면 SERVICE 코드를 보고 원인을 분석해 수정 코드(diff)와 영향 범위까지 만들어 Discord 장애 알림 하나로 알립니다. 수정안은 적용하지 않고 사람이 보고 SERVICE에 PR로 올립니다. 배포 직후 장애면 런북 안내든 원인 분석이든 메시지에 롤백 버튼이 붙고, 승인 역할을 가진 사람이 누르면 INFRA 레포의 롤백 PR이 리뷰 없이 merge됩니다. Discord 승인이 사람 리뷰입니다. 같은 워커가 보안 스캔 결과를 하루에 한 번 요약해 보안 채널에 올립니다.
 
 레포를 나눈 이유는 [SPEC adr/0001](https://github.com/saebyeok-baesong/SPEC-maemusae/blob/main/adr/0001-repo-structure.md)에 있습니다. Alertmanager payload 예시는 [SPEC fixtures](https://github.com/saebyeok-baesong/SPEC-maemusae/tree/main/fixtures)에, `images.yaml` 계약은 [SPEC contracts](https://github.com/saebyeok-baesong/SPEC-maemusae/tree/main/contracts)에 둡니다. 이 레포에는 쿠버네티스 매니페스트가 없습니다. 클러스터에 올리는 정의는 INFRA 레포 `gitops/`에 두고, 거기에 필요한 것은 [docs/infra-requirements.md](docs/infra-requirements.md)에 적었습니다.
 
@@ -20,6 +20,7 @@ flowchart LR
     HOOK -->|images.yaml 이력| INFRA[(INFRA 레포)]
     HOOK -->|XADD| Q[(Redis Streams)]
     Q --> W[worker<br/>4 분석 LangGraph]
+    W -->|tarball 읽기| SVC[(SERVICE 레포)]
     W -->|메시지| DC[Discord 장애 채널<br/>5 보고]
     W -->|롤백 PR| INFRA
     DC -->|버튼| BOT[approvals<br/>6 조치]
@@ -39,8 +40,8 @@ flowchart LR
 | 1 감지 | 5xx 비율, 처리 못 한 예외(Loki 규칙), CrashLoop, OOMKilled. 규칙은 INFRA에 둔다 | [docs/alerting.md](docs/alerting.md) |
 | 2 전달 | Alertmanager가 같은 장애를 묶고, 예외 경보가 뜨면 5xx 경보를 막고, Bearer 토큰으로 보낸다 | [docs/alerting.md](docs/alerting.md) |
 | 3 접수 | payload 파싱, 지문 중복 제거, 스택트레이스와 Pod 로그, Pod 이벤트, 직전 배포를 붙여 큐에 넣고 202 | `app/main.py`, `app/alerts.py` |
-| 4 분석 | 분류(경량 모델, 지문 캐시) -> 런북 검색(pgvector + 키워드) -> 코드 수정이 필요하면 원인 분석(고성능 모델). 장애당 비용 상한 | `app/graph/`, `app/llm/`, `app/rag/` |
-| 5 보고 | 장애 하나에 장애 알림 하나. 요약, 근거, 런북 링크, 배포 직후면 롤백 버튼 | `app/discord/cards.py`, `app/worker.py` |
+| 4 분석 | 분류(경량 모델, 지문 캐시) -> 런북 검색(pgvector + 키워드) -> 코드 수정이 필요하면 스택트레이스 위치의 SERVICE 코드로 원인 분석 -> 수정 코드 생성(고성능 모델, diff가 아니면 사유를 붙여 한 번 더) -> diff 분석(바뀐 함수, 시그니처 변경) -> 영향 범위(import 그래프 역추적, 위험도). 장애당 비용 상한 | `app/graph/`, `app/llm/`, `app/rag/`, `app/analysis/` |
+| 5 보고 | 장애 하나에 장애 알림 하나. 요약, 근거, 원인, 수정안과 영향 범위와 diff, 런북 링크, 배포 직후면 롤백 버튼 | `app/discord/cards.py`, `app/worker.py` |
 | 6 조치 | 승인 역할(처음에는 풀스택, 인프라, 보안팀) 중 하나를 가진 사람만 승인. PR이 `images.yaml` 그 앱 한 줄만 바꾸는지 다시 보고 merge하고 기록. 알림이 해소되면 메시지에 해소 확인 | `app/rollback.py`, `app/approvals.py` |
 | 보안 일일 보고 | CI 스캔은 S3에서, kube-bench는 api로 받아 비밀값 없이 security DB에 쌓고, 매일 9시(KST)에 요약해 보안 채널에 올린다 | `app/security/`, [docs/security-reports.md](docs/security-reports.md) |
 
@@ -58,7 +59,8 @@ flowchart LR
 | `app/graph/` | LangGraph 노드와 흐름. 체크포인터는 incident DB |
 | `app/llm/` | 모델 분리와 응답 캐시(`router.py`), 비용과 예산(`cost.py`), 프롬프트, 출력 스키마, 가짜 LLM |
 | `app/rag/` | 문단 경계 청킹, 임베딩 캐시, 증분 수집, 메타데이터 필터 + 벡터 + 키워드(RRF) 검색 |
-| `app/sources/` | 바깥 시스템 클라이언트. Loki, Kubernetes 이벤트, GitHub App(INFRA) |
+| `app/analysis/` | 코드 근거 자르기(`code_context.py`), diff 분석(`diff.py`), 영향 범위(`impact.py`). 지금은 Python(api, SERVICE `backend/`)만 본다 |
+| `app/sources/` | 바깥 시스템 클라이언트. Loki, Kubernetes 이벤트, GitHub App(INFRA 롤백, SERVICE 코드 읽기) |
 | `app/discord/` | Discord REST 클라이언트와 메시지 빌더 |
 | `app/security/` | 도구별 파서(Trivy, gitleaks, kube-bench), S3 수집 진입점(`ingest_s3.py`), security DB 저장, 일일 보고 |
 | `app/core/` | 에러 지문, Redis Streams 큐, 장애 저장소 |
@@ -116,6 +118,8 @@ flowchart LR
 | `DISCORD_INCIDENT_CHANNEL_ID`, `DISCORD_SECURITY_CHANNEL_ID` | worker | 장애 채널, 보안 채널 |
 | `DISCORD_APPROVER_ROLE_IDS` | approvals | 승인 역할 ID, 쉼표로 나눈다. 하나라도 가진 사람이 승인한다. 처음에는 풀스택, 인프라, 보안팀 셋이고 나중에 줄인다. 비우면 아무도 승인하지 못한다 |
 | `GITHUB_APP_ID`, `GITHUB_APP_INSTALLATION_ID`, `GITHUB_APP_PRIVATE_KEY` | api, worker, approvals | 롤백 App. INFRA 레포 읽기(배포 이력)와 쓰기(롤백 PR, merge). CI의 이미지 PR App과 다른 App이다 |
+| `CODE_APP_ID`, `CODE_APP_INSTALLATION_ID`, `CODE_APP_PRIVATE_KEY` | worker | 코드 읽기 App. SERVICE 레포 Contents 읽기만. 비우면 코드 없이 원인 분석에서 끝난다 |
+| `SERVICE_SOURCE_DIRS`, `SERVICE_REF` | worker | 수정안을 만들 앱과 SERVICE 안 소스 디렉터리(기본 `{"api": "backend"}`), 읽을 ref(기본 `main`) |
 | `ROLLBACK_APPS`, `ROLLBACK_WINDOW_MIN` | worker | 롤백을 제안할 앱과 배포 뒤 시간 범위(기본 web, api와 30분) |
 | `SECURITY_SCAN_BUCKET`, `AWS_REGION` | ingest-s3 | CI 스캔 결과 버킷(`maemusae-security-scans-<account_id>`). 자격은 Pod Identity |
 
@@ -127,6 +131,7 @@ flowchart LR
 - 롤백 App은 리뷰 없이 merge하므로 PR 모양도 확인합니다. base가 `main`이 아니거나, `images.yaml` 말고 다른 파일이 바뀌었거나, 그 앱 한 줄 말고 다른 줄이 바뀌었으면 merge하지 않고 메시지에 거부 사유를 답니다.
 - 봇이 되돌린 배포 뒤의 장애에는 롤백을 다시 제안하지 않습니다. 직전 이미지가 방금 되돌린 나쁜 이미지이기 때문입니다.
 - 워커가 죽으면 다른 워커가 메시지를 회수하고 체크포인트에서 이어서 처리합니다. 메시지는 한 번만 올라갑니다.
+- 수정안은 SERVICE에 적용하거나 실행하지 않습니다. 코드 읽기 App은 쓰기 권한이 없고, LLM이 준 경로는 받은 소스 디렉터리 밖을 읽지 못합니다.
 - gitleaks와 Trivy가 찾은 비밀값은 저장하지 않습니다. 규칙 ID와 위치만 남깁니다. gitleaks 결과는 모두 CRITICAL입니다.
 - S3의 같은 스캔 객체는 한 번만 넣습니다. 가져온 키를 security DB에 unique로 남깁니다.
 - Redis는 클러스터 안 Pod라 클러스터를 내리면 큐가 비워집니다. 받아들인 결정이고 영향은 [docs/infra-requirements.md](docs/infra-requirements.md#redis)에 있습니다.

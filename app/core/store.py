@@ -8,7 +8,7 @@ from redis import Redis
 
 from app.incident import Incident
 
-TERMINAL = {"runbook", "analyzed", "budget_exceeded", "failed"}
+TERMINAL = {"runbook", "analyzed", "fix_proposed", "budget_exceeded", "failed"}
 
 
 @dataclass(frozen=True)

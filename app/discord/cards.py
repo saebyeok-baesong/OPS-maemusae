@@ -4,6 +4,7 @@ Discord 한도: embed 제목 256, 설명 4096, 필드 값 1024, 필드 25개, em
 """
 from dataclasses import dataclass
 
+from app.graph.nodes import impact_summary
 from app.incident import Incident
 from app.rollback import RollbackPR, short
 
@@ -23,6 +24,7 @@ class Look:
 LOOKS = {
     "runbook": Look("📘", "코드 수정 대상 아님 · 런북 안내", 0x3498DB),
     "analyzed": Look("🔎", "코드 수정 필요 · 원인 분석", 0xE67E22),
+    "fix_proposed": Look("🛠️", "코드 수정 필요 · 원인 분석과 수정안", 0xE67E22),
     "budget_exceeded": Look("💸", "LLM 비용 상한 도달 · 담당자 확인", 0x95A5A6),
     "failed": Look("❌", "자동 분석 실패 · 담당자 확인", 0xE74C3C),
 }
@@ -76,6 +78,15 @@ def incident_card(incident_id: str, state: dict, rollback: RollbackPR | None, ru
     if rc := state.get("root_cause"):
         steps = "\n".join(f"- {s}" for s in rc.get("next_steps", [])[:3])
         fields.append(_field("원인", clip(rc["root_cause"], BODY_MAX) + (f"\n{steps}" if steps else "")))
+    if (fix := state.get("fix")) and (impact := state.get("impact")):
+        src = state["source"]
+        files = "\n".join(f"`{src['dir']}/{f['path']}` +{f['added']} -{f['removed']}" for f in state["diff"]["files"])
+        fields.append(_field(f"수정안 (SERVICE `{src['sha'][:7]}`, 위험도 {fix['risk']})",
+                             clip(fix["explanation"], BODY_MAX) + f"\n{files}"))
+        fields.append(_field("영향 범위", "\n".join(impact_summary(impact))))
+        fields.append(_field("diff", f"```diff\n{clip(fix['patch'], FIELD_MAX - 20)}\n```"))
+    elif state.get("fix"):
+        fields.append(_field("수정안", f"{state.get('fix_attempts', 0)}번 만들었지만 diff 형식이 아니어서 버렸다"))
     if evidence := _evidence(inc):
         fields.append(_field("근거", evidence))
     if docs := state.get("context_docs"):

@@ -93,6 +93,13 @@ class Container:
         return make_infra_repo(self.settings)
 
     @cached_property
+    def source(self):
+        """SERVICE 소스. 코드 읽기 App 설정이 없으면 None이고, 코드 근거와 수정안이 빠진다."""
+        from app.sources.service import make_service_source
+
+        return make_service_source(self.settings)
+
+    @cached_property
     def discord(self) -> DiscordClient:
         return DiscordClient(self.settings.discord_bot_token)
 
@@ -101,7 +108,8 @@ class Container:
         from app.graph.nodes import Nodes
         from app.graph.workflow import build_graph
 
-        return build_graph(Nodes(self.settings, self.router, self.retriever, self.cost), checkpointer=checkpointer(self.db))
+        return build_graph(Nodes(self.settings, self.router, self.retriever, self.cost, self.source),
+                           self.settings.fix_max_attempts, checkpointer=checkpointer(self.db))
 
     @cached_property
     def digest(self):

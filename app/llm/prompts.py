@@ -38,8 +38,9 @@ def classify_user(inc: Incident) -> str:
     return f"[앱] {inc.app}\n[알림]\n{clip(inc.message, 1500)}\n\n{evidence_text(inc)}"
 
 
-ROOT_CAUSE_SYSTEM = """너는 매무새의 시니어 백엔드 엔지니어다. 장애 정보, 근거 로그, 사내 런북을 보고 근본 원인을 추론한다.
-코드는 보지 못한다. 추측이면 추측이라고 쓰고, evidence에는 근거가 된 로그 줄이나 문서를 적는다.
+ROOT_CAUSE_SYSTEM = """너는 매무새의 시니어 백엔드 엔지니어다. 장애 정보, 근거 로그, 사내 런북, 스택트레이스 위치의 코드를 보고 근본 원인을 추론한다.
+코드가 없으면 추측이면 추측이라고 쓴다. evidence에는 근거가 된 로그 줄, 코드 위치, 문서를 적는다.
+suspected_files에는 고칠 파일을 제공된 코드의 ### 경로 그대로 적는다. 코드가 없으면 비운다.
 장애 직전에 배포가 있었으면 그 배포를 원인 후보로 검토하고, 그렇게 판단했으면 evidence에 이미지와 배포 시각을 적는다.
 next_steps에는 담당 개발자가 바로 할 일을 적는다."""
 
@@ -56,7 +57,7 @@ def deploy_text(inc: Incident) -> str:
     return line
 
 
-def root_cause_user(inc: Incident, classification: dict, docs: str) -> str:
+def root_cause_user(inc: Incident, classification: dict, docs: str, code: str = "") -> str:
     return f"""[장애]
 앱: {inc.app} (namespace {inc.namespace})
 알림: {clip(inc.message, 1500)}
@@ -69,7 +70,35 @@ def root_cause_user(inc: Incident, classification: dict, docs: str) -> str:
 {deploy_text(inc)}
 
 [관련 런북]
-{docs or '(검색 결과 없음)'}"""
+{docs or '(검색 결과 없음)'}
+
+[스택트레이스 위치의 코드]
+{code or '(코드 없음)'}"""
+
+
+FIX_SYSTEM = """너는 장애를 고치는 수정안을 작성한다. 사람이 검토하고 SERVICE 레포에 PR로 올린다. 규칙:
+1. patch는 제공된 코드의 ### 경로 기준 unified diff다. 헤더는 '--- a/경로', '+++ b/경로'를 쓴다.
+2. 원인을 고치는 최소 변경만 한다. 리팩터링, 포매팅 변경, 무관한 파일 수정은 하지 않는다.
+3. 기존 함수의 시그니처와 정상 경로의 동작은 바꾸지 않는다. 시그니처를 바꾸면 호출하는 곳이 모두 영향 범위에 들어간다.
+4. 이전 시도가 거절됐다면 그 사유를 읽고 같은 실수를 반복하지 않는다.
+5. 컨텍스트 줄은 제공된 코드와 정확히 같아야 한다. 코드 앞의 줄 번호 표시('  12| ')는 patch에 넣지 않는다.
+risk에는 이 변경이 정상 경로를 깨뜨릴 가능성을 low, medium, high로 적는다."""
+
+
+def fix_user(inc: Incident, root_cause: dict, code: str, history: list[dict]) -> str:
+    prev = "".join(f"\n--- 이전 시도 {i} (거절) ---\n[패치]\n{clip(h['patch'], 1500)}\n[사유] {h['reason']}\n"
+                   for i, h in enumerate(history, 1))
+    steps = "\n".join(f"- {s}" for s in root_cause.get("next_steps", []))
+    return f"""[장애] {inc.app}: {clip(inc.message, 800)}
+
+[근본 원인] {root_cause['root_cause']}
+[의심 위치] {root_cause.get('suspected_area', '')}
+[할 일]
+{steps}
+
+[수정 대상 코드]
+{code}
+{prev}"""
 
 
 SECURITY_SYSTEM = """너는 보안팀의 일일 보고를 쓰는 도구다. 주어진 집계와 새 결과 목록만 근거로 쓴다.

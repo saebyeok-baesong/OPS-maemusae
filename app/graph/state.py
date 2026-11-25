@@ -12,7 +12,15 @@ class IncidentState(TypedDict, total=False):
     context_docs: list[dict]
     root_cause: dict
 
-    outcome: str      # runbook | analyzed | budget_exceeded
+    # 코드 수정안. source는 {"sha", "dir"}: 한 장애의 단계들이 같은 SERVICE 커밋을 본다
+    source: dict
+    fix: dict             # FixProposal
+    fix_attempts: int
+    fix_history: list[dict]   # 거절된 수정안과 사유
+    diff: dict            # DiffAnalysis.to_dict()
+    impact: dict          # ImpactReport.to_dict()
+
+    outcome: str      # runbook | analyzed | fix_proposed | budget_exceeded
     error: str
     report: str
     cost: dict

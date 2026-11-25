@@ -63,18 +63,20 @@ Secrets Manager `maemusae/ops`에 넣고 External Secrets로 옮깁니다.
 | `OPENAI_API_KEY` | worker |
 | `DISCORD_BOT_TOKEN` | worker, approvals |
 | `GITHUB_APP_ID`, `GITHUB_APP_INSTALLATION_ID`, `GITHUB_APP_PRIVATE_KEY` | 롤백 App. api(배포 이력 읽기), worker(롤백 PR 열기), approvals(merge) |
+| `CODE_APP_ID`, `CODE_APP_INSTALLATION_ID`, `CODE_APP_PRIVATE_KEY` | 코드 읽기 App. worker(SERVICE 소스 읽기) |
 | `DATABASE_URL`, `SECURITY_DATABASE_URL`, `REDIS_URL` | 위 표대로 |
 
 비밀이 아닌 값(`LOKI_URL`, `DISCORD_*_CHANNEL_ID`, `DISCORD_APPROVER_ROLE_IDS`, `LIGHT_MODEL`, `HEAVY_MODEL`, `MODEL_PRICES`, `ROLLBACK_APPS`, `SECURITY_SCAN_BUCKET`)은 ConfigMap에 둡니다.
 
-## GitHub App 두 개
+## GitHub App 세 개
 
-봇을 두 개로 나눕니다. 키를 갖는 곳이 다르기 때문입니다. 이미지 PR App의 키는 GitHub Actions(CI)에, 롤백 App의 키는 클러스터에 있습니다. 하나가 새도 다른 쪽 권한은 드러나지 않습니다.
+쓰기 봇을 두 개로 나눕니다. 키를 갖는 곳이 다르기 때문입니다. 이미지 PR App의 키는 GitHub Actions(CI)에, 롤백 App의 키는 클러스터에 있습니다. 하나가 새도 다른 쪽 권한은 드러나지 않습니다.
 
 | App | 쓰는 곳 | 하는 일 | 리뷰 규칙 우회 |
 | --- | --- | --- | --- |
 | 이미지 PR App | SERVICE, OPS의 GitHub Actions | 새 digest로 `images.yaml`의 자기 줄을 바꾸는 PR을 연다 | 없음. 사람이 리뷰하고 merge한다 |
 | 롤백 App | 클러스터 안 OPS | 배포 이력을 읽고, 롤백 PR을 열고, Discord 승인 뒤 merge한다 | INFRA `main` ruleset에서 이 App 하나만 |
+| 코드 읽기 App | 클러스터 안 OPS worker | SERVICE 소스를 tarball로 읽어 원인 분석, 수정안, 영향 범위에 쓴다 | 없음. 읽기만 한다 |
 
 ### 롤백 App
 
@@ -93,6 +95,17 @@ GitHub App 권한은 파일 단위로 좁힐 수 없습니다. Contents 쓰기�
 - 바뀐 줄이 롤백 대상 앱 한 줄뿐이고, 그 줄이 제안 때 이미지에서 직전 이미지로 바뀐다.
 
 봇이 쓰는 경로는 `gitops/apps/images.yaml` 한 파일입니다. 형식은 [SPEC contracts/images-yaml.md](https://github.com/saebyeok-baesong/SPEC-maemusae/blob/main/contracts/images-yaml.md)를 따릅니다.
+
+### 코드 읽기 App
+
+롤백 App을 SERVICE에 설치하지 않으려고 따로 둡니다. 롤백 App의 Contents 쓰기가 SERVICE까지 넓어지기 때문입니다.
+
+1. 조직 `saebyeok-baesong`에 GitHub App을 만듭니다. Webhook은 끕니다.
+2. Repository permissions는 Contents(Read-only), Metadata(Read-only)만 줍니다.
+3. 설치 범위는 "Only select repositories"로 SERVICE-maemusae 하나만 고릅니다. 설치 ID가 `CODE_APP_INSTALLATION_ID`입니다.
+4. private key는 Secrets Manager `maemusae/ops`의 `CODE_APP_PRIVATE_KEY`로 넣고, 그 Secret은 worker ServiceAccount만 읽게 합니다.
+
+worker는 커밋마다 SERVICE `backend/`의 `.py` 파일만 `/tmp/ops-source`(`SOURCE_CACHE_DIR`)에 풀어 둡니다. 루트 파일시스템을 읽기 전용으로 두면 이 경로에 `emptyDir`(`sizeLimit: 500Mi`)를 붙입니다. Pod가 다시 뜨면 다시 받습니다.
 
 ### 이미지 PR App
 

@@ -28,6 +28,7 @@ TASK_TIER: dict[str, Tier] = {
     "classify": Tier.LIGHT,
     "security_summary": Tier.LIGHT,
     "root_cause": Tier.HEAVY,
+    "generate_fix": Tier.HEAVY,
 }
 CACHEABLE_TASKS = {"classify", "root_cause"}
 

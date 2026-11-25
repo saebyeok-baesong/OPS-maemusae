@@ -75,6 +75,7 @@ def process_analyze(c: Container, msg_id: str, job: AnalyzeJob) -> dict:
     c.store.set_status(
         job.incident_id, final["outcome"], report=final["report"],
         classification=final.get("classification", {}), root_cause=final.get("root_cause"),
+        source=final.get("source"), fix=final.get("fix"), diff=final.get("diff"), impact=final.get("impact"),
         context_doc_ids=[d["doc_id"] for d in final.get("context_docs", [])], cost=final.get("cost", {}),
         rollback_pr=pr.model_dump(mode="json") if pr else None, rollback_note=note, resumed_from=resumed_from,
     )

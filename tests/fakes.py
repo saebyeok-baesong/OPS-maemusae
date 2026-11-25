@@ -180,3 +180,84 @@ def kube(events: list[dict]) -> Kube:
         return httpx.Response(200, json={"items": events})
 
     return Kube(httpx.Client(base_url="https://k8s", transport=httpx.MockTransport(handle)))
+
+
+# SERVICE 레포 backend의 축소판. TRACE가 가리키는 orders.py 88번째 줄에서 0으로 나눈다
+SERVICE_SHA = "5e7c1f0" + "0" * 33
+ORDERS = "\n" * 84 + (
+    "def list_orders(orders):\n"
+    "    if orders is None:\n"
+    "        return 0\n"
+    "    total = sum(o.amount for o in orders) / len(orders)\n"
+    "    return total\n"
+)
+SERVICE_FILES = {
+    "backend/app/__init__.py": "",
+    "backend/app/api/__init__.py": "",
+    "backend/app/api/routes/__init__.py": "",
+    "backend/app/api/routes/orders.py": ORDERS,
+    "backend/app/api/routes/reports.py": "from app.api.routes.orders import list_orders\n\n\ndef monthly(o):\n    return list_orders(o)\n",
+    "backend/app/api/routes/health.py": "from app.api.routes import orders\n\n\ndef ok():\n    return True\n",
+    "backend/app/main.py": "from app.api.routes import reports\n\napp = reports\n",
+    "backend/tests/test_orders.py": "from app.api.routes.orders import list_orders\n\n\ndef test_none():\n    assert list_orders(None) == 0\n",
+    "backend/pyproject.toml": "[project]\nname = 'backend'\n",
+    "frontend/src/page.tsx": "export default function Page() {}\n",
+}
+# orders.py의 list_orders 한 줄만 고친다. reports(list_orders를 씀)와 main, 테스트가 영향 범위다
+FIX_PATCH = """--- a/app/api/routes/orders.py
++++ b/app/api/routes/orders.py
+@@ -86,3 +86,5 @@
+     if orders is None:
+         return 0
++    if not orders:
++        return 0
+     total = sum(o.amount for o in orders) / len(orders)
+"""
+
+
+def tarball(files: dict[str, str], top: str) -> bytes:
+    import io
+    import tarfile
+
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:gz") as tar:
+        for name, text in files.items():
+            data = text.encode()
+            info = tarfile.TarInfo(f"{top}/{name}")
+            info.size = len(data)
+            tar.addfile(info, io.BytesIO(data))
+    return buf.getvalue()
+
+
+@dataclass
+class FakeServiceGitHub:
+    """SERVICE 레포. main은 SERVICE_SHA 하나이고, tarball은 GitHub처럼 codeload로 redirect한다."""
+
+    files: dict[str, str] = field(default_factory=lambda: dict(SERVICE_FILES))
+    downloads: int = 0
+    fail: bool = False
+
+    def handle(self, request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path.startswith("/app/installations/"):
+            return httpx.Response(201, json={"token": "code-token",
+                                             "expires_at": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()})
+        if request.url.host == "codeload.github.com":
+            assert "Authorization" not in request.headers, "다른 호스트로 토큰을 보내지 않는다"
+            self.downloads += 1
+            return httpx.Response(200, content=tarball(self.files, f"{OWNER}-SERVICE-maemusae-{SERVICE_SHA[:7]}"))
+        assert request.headers["Authorization"] == "Bearer code-token"
+        if self.fail:
+            return httpx.Response(503)
+        path = path.removeprefix(f"/repos/{OWNER}/SERVICE-maemusae")
+        if path == "/commits/main":
+            return httpx.Response(200, text=SERVICE_SHA)
+        if path == f"/tarball/{SERVICE_SHA}":
+            return httpx.Response(302, headers={"Location": f"https://codeload.github.com/{OWNER}/SERVICE-maemusae/legacy.tar.gz/{SERVICE_SHA}?token=t"})
+        return httpx.Response(404)
+
+    def source(self, private_key: str, cache_dir: str):
+        from app.sources.service import ServiceSource
+
+        http = httpx.Client(base_url="https://api.github.com", transport=httpx.MockTransport(self.handle))
+        return ServiceSource(f"{OWNER}/SERVICE-maemusae", "main", GitHubAppAuth("999", "111", private_key, http), http, cache_dir)
