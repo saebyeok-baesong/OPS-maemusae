@@ -9,7 +9,7 @@ description: 장애 대응 파이프라인의 순서 약속(장애 알림 한 �
 
 ## 이 변경이 해당되는지
 
-아래 표의 함수 본문, 그 안의 호출 순서, 또는 SQL(특히 `ON CONFLICT`, `result || %s`)이 바뀌면 해당됩니다. `git diff 679e135 -- <파일>`로 sync 커밋 뒤의 변경을 봅니다.
+아래 표의 함수 본문, 그 안의 호출 순서, 또는 SQL(특히 `ON CONFLICT`, `result || %s`)이 바뀌면 해당됩니다. `git diff fd1863e -- <파일>`로 sync 커밋 뒤의 변경을 봅니다.
 
 | 코드 | 모델(`IncidentPipeline.tla`) | 테스트(`tests/test_faults.py`) |
 | --- | --- | --- |
@@ -23,7 +23,7 @@ description: 장애 대응 파이프라인의 순서 약속(장애 알림 한 �
 | `app/rollback.py` `approve`, `_merge` | `Click`, `Start`, `Merge`, `Finish`, `CrashApprover` | S2, F4 |
 | `app/approvals.py` `handle_click`, `approve_from_cli` | `Click` | S2 |
 
-**Sync 커밋: `679e135`** (feat/local-demo)에 커밋하지 않은 F1 수정(`app/worker.py` `process_analyze` 실패 경로)을 더한 상태. 이 수정을 커밋하면 그 커밋으로 옮깁니다. 이 상태에서 위 코드를 모델과 한 줄씩 맞춰 봤습니다. 모델이 새 커밋의 코드를 그대로 그린다는 것을 확인한 뒤에만 이 값을 옮깁니다. 테스트가 통과했다는 것만으로는 옮기지 않습니다.
+**Sync 커밋: `fd1863e`** (feat/local-demo, F1 수정 포함). 이 커밋에서 위 코드를 모델과 한 줄씩 맞춰 봤습니다. 모델이 새 커밋의 코드를 그대로 그린다는 것을 확인한 뒤에만 이 값을 옮깁니다. 테스트가 통과했다는 것만으로는 옮기지 않습니다.
 
 ## 돌리기
 
