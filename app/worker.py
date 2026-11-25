@@ -92,14 +92,17 @@ def process_resolved(c: Container, msg_id: str, job: ResolvedJob) -> str | None:
     """메시지에 해소 확인을 단다. 승인된 롤백이 있었으면 조치부터 해소까지 걸린 시간을 같이 남긴다."""
     record = c.store.get(job.incident_id)
     text = None
-    if record and record.card_message_id:
+    # 메시지를 올리지 못했으면(Discord를 끈 로컬 데모 포함) 답 대신 새 메시지로 남긴다
+    if record:
         minutes = (job.resolved_at - record.incident.occurred_at).total_seconds() / 60
         text = f"✅ 알림 해소 확인 · 발생 {minutes:.0f}분 뒤"
         merged = [a for a in c.store.actions(job.incident_id) if a["status"] == rollback.Status.MERGED and a["finished_at"]]
         if merged:
             after = (job.resolved_at - merged[0]["finished_at"]).total_seconds() / 60
-            text += f" · 롤백 merge {after:.0f}분 뒤 (승인 <@{merged[0]['approver']}>)"
-        c.discord.post(record.card_channel_id, cards.reply(text), reply_to=record.card_message_id)
+            approver = merged[0]["approver"]
+            text += f" · 롤백 merge {after:.0f}분 뒤 (승인 {f'`{approver}`' if approver.startswith('cli:') else f'<@{approver}>'})"
+        channel = record.card_channel_id or c.settings.discord_incident_channel_id
+        c.discord.post(channel, cards.reply(text), reply_to=record.card_message_id)
     c.queue.ack(msg_id)
     return text
 

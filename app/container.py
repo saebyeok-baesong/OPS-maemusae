@@ -88,6 +88,10 @@ class Container:
     @cached_property
     def infra(self):
         """INFRA 레포. GitHub App 설정이 없으면 None이고, 배포 이력과 롤백 제안이 빠진다."""
+        if self.settings.infra_repo_backend == "local-git":
+            from app.sources.local_git import make_local_infra_repo
+
+            return make_local_infra_repo(self.settings)
         from app.sources.github import make_infra_repo
 
         return make_infra_repo(self.settings)

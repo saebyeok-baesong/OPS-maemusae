@@ -3,6 +3,7 @@
 토큰이 없으면 로그만 남긴다. 보내기에 실패해도 예외를 올리지 않는다. 분석 결과는 이미 저장됐고,
 알림 실패로 워커가 같은 메시지를 다시 처리하면 안 된다.
 """
+import json
 import logging
 
 import httpx
@@ -19,7 +20,8 @@ class DiscordClient:
     def post(self, channel_id: str, message: dict, reply_to: str | None = None) -> str:
         """보낸 메시지 ID. 보내지 않았거나 실패하면 빈 문자열."""
         if not self.enabled or not channel_id:
-            log.info("[discord disabled] #%s %s", channel_id, str(message)[:300])
+            # 로컬 데모는 Discord 없이 이 로그로 메시지를 본다. 그래서 자르지 않는다
+            log.info("[discord disabled] #%s %s", channel_id, json.dumps(message, ensure_ascii=False))
             return ""
         if reply_to:
             message = {**message, "message_reference": {"message_id": reply_to, "fail_if_not_exists": False}}
