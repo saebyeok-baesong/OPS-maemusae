@@ -16,7 +16,7 @@ dc run --rm --no-deps deployer gitops.sh init "$(image_ref v1)"
 
 say "컨테이너를 올립니다"
 dc up -d --wait --wait-timeout 300 service-db ops-postgres ops-redis loki alertmanager prometheus blackbox grafana alloy ops-api
-dc up -d deployer traffic ops-worker
+dc up -d deployer traffic ops-worker ${DISCORD_BOT_TOKEN:+ops-approvals}
 wait_for "api 준비" 120 curl -sf localhost:18080/health/ready >/dev/null
 wait_for "worker 시작" 180 sh -c "docker compose -p watchnyang-demo logs ops-worker | grep 'started, knowledge'" >/dev/null
 
